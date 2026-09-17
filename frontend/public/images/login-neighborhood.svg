@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 1280" role="img" aria-label="Ilustrasi komplek rumah">
+  <defs>
+    <linearGradient id="sky" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0" stop-color="#f8fbfd"/>
+      <stop offset=".35" stop-color="#eef5f8"/>
+      <stop offset="1" stop-color="#dcecf1"/>
+    </linearGradient>
+    <style>
+      .road{fill:none;stroke:#d2dce3;stroke-width:6;stroke-linecap:round;opacity:.72}
+      .lot{fill:#9dd0ba;opacity:.86}
+      .tree{fill:#6aa48c;stroke:#455766;stroke-width:2}
+      .wall{fill:#eff5f7;stroke:#485766;stroke-width:2}
+      .side{fill:#dce8ee;stroke:#485766;stroke-width:2}
+      .roof{fill:#f8fbfc;stroke:#485766;stroke-width:2}
+      .accent{fill:#8c62c4;stroke:#485766;stroke-width:2}
+      .glass{fill:#b5d5d7;stroke:#485766;stroke-width:2}
+      .line{fill:none;stroke:#c9d4db;stroke-width:2;opacity:.86}
+    </style>
+  </defs>
+  <rect width="720" height="1280" fill="url(#sky)"/>
+  <path class="line" d="M-40 118 248 292M-20 360 314 193M447 -20 376 126 720 358M504 -20 681 284M-60 556 238 432 480 548 780 408"/>
+  <path class="line" d="M18 86 314 252M438 172 682 36M422 164 630 292M125 278 283 358M430 710 720 548M-24 906 248 780"/>
+  <g transform="translate(-42 298)">
+    <path d="M102 172h558M32 360h700M360 76v802M592 128 104 626M126 82l534 316M110 690l512 308" stroke="#f7fbfc" stroke-width="54" stroke-linecap="round"/>
+    <path class="lot" d="M52 204h112v92H52zM202 144h144v116H202zM408 132h128v112H408zM566 220h142v98H566zM70 430h160v112H70zM286 398h132v112H286zM498 416h164v122H498zM88 614h128v106H88zM272 604h164v118H272zM516 614h146v106H516zM132 808h168v112H132zM430 814h190v116H430z"/>
+    <g transform="translate(88 112)"><path class="side" d="M80 44 132 18v98l-52 28z"/><path class="wall" d="M0 82 80 44v100L0 184z"/><path class="roof" d="M0 82 54 54l78 34-52 28z"/><path class="glass" d="M20 104h34v28H20z"/><path class="glass" d="M72 78h30v26H72z"/><path class="accent" d="M62 148h24v40H62z"/></g>
+    <g transform="translate(246 58)"><path class="side" d="M88 52 146 22v106l-58 34z"/><path class="wall" d="M0 96 88 52v110L0 208z"/><path class="roof" d="M0 96 56 64l90 42-58 34z"/><path class="glass" d="M22 122h36v36H22z"/><path class="glass" d="M78 82h36v36H78z"/></g>
+    <g transform="translate(470 58)"><path class="side" d="M92 66 158 30v122l-66 38z"/><path class="wall" d="M0 112 92 66v124L0 236z"/><path class="roof" d="M0 112 66 76l92 46-66 38z"/><path class="accent" d="M92 66 158 30l22 38-64 38z"/><path class="glass" d="M24 136h34v38H24z"/><path class="glass" d="M82 98h34v36H82z"/></g>
+    <g transform="translate(108 374)"><path class="side" d="M96 58 158 28v118l-62 34z"/><path class="wall" d="M0 108 96 58v122L0 230z"/><path class="roof" d="M0 108 64 74l94 44-62 34z"/><path class="glass" d="M24 132h40v40H24z"/><path class="accent" d="M76 174h26v44H76z"/></g>
+    <g transform="translate(354 346)"><path class="side" d="M104 64 168 28v126l-64 42z"/><path class="wall" d="M0 118 104 64v132L0 250z"/><path class="roof" d="M0 118 70 78l98 48-64 42z"/><path class="glass" d="M26 144h42v44H26z"/><path class="glass" d="M96 100h38v38H96z"/></g>
+    <g transform="translate(562 378)"><path class="side" d="M70 46 118 22v88l-48 28z"/><path class="wall" d="M0 80 70 46v92L0 174z"/><path class="roof" d="M0 80 48 54l70 34-48 28z"/><path class="glass" d="M18 102h30v28H18z"/></g>
+    <g transform="translate(88 632)"><path class="side" d="M86 52 144 24v108l-58 34z"/><path class="wall" d="M0 96 86 52v114L0 210z"/><path class="roof" d="M0 96 58 66l86 40-58 34z"/><path class="glass" d="M22 122h36v34H22z"/><path class="accent" d="M66 158h26v42H66z"/></g>
+    <g transform="translate(438 636)"><path class="side" d="M88 54 150 24v112l-62 36z"/><path class="wall" d="M0 100 88 54v118L0 220z"/><path class="roof" d="M0 100 62 68l88 42-62 36z"/><path class="accent" d="M88 54 150 24l18 34-60 34z"/><path class="glass" d="M24 126h36v36H24z"/></g>
+    <g transform="translate(230 772)"><path class="side" d="M96 56 158 24v118l-62 36z"/><path class="wall" d="M0 106 96 56v122L0 228z"/><path class="roof" d="M0 106 64 70l94 46-62 36z"/><path class="glass" d="M24 130h40v38H24z"/><path class="glass" d="M86 92h38v34H86z"/></g>
+    <g transform="translate(468 820)"><path class="side" d="M106 64 174 28v130l-68 40z"/><path class="wall" d="M0 118 106 64v134L0 252z"/><path class="roof" d="M0 118 72 78l102 50-68 40z"/><path class="glass" d="M28 146h42v40H28z"/><path class="accent" d="M82 188h28v48H82z"/></g>
+    <g transform="translate(318 606)"><path d="M0 80h180M28 24h124M44 112h92" stroke="#f7fbfc" stroke-width="18" stroke-linecap="round"/><path d="M88 46a46 24 0 1 0 1 0" fill="none" stroke="#7db69f" stroke-width="20"/><path d="M30 126h136v62H30z" fill="none" stroke="#6aa48c" stroke-width="12"/></g>
+    <g><path class="tree" d="M190 284c18-40 44-12 24 18-10 18-36 16-24-18z"/><path class="tree" d="M640 570c24-48 58-12 30 24-14 20-44 16-30-24z"/><path class="tree" d="M310 308c18-38 42-10 22 18-11 17-34 14-22-18z"/><path class="tree" d="M586 292c18-36 42-10 22 18-10 16-34 14-22-18z"/><path class="tree" d="M260 724c16-34 40-8 20 18-10 14-30 12-20-18z"/><path class="tree" d="M602 762c18-38 42-10 22 18-10 16-34 14-22-18z"/><path class="tree" d="M152 852c22-46 54-10 28 24-14 18-42 14-28-24z"/></g>
+  </g>
+</svg>

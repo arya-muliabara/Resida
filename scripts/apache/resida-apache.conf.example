@@ -1,0 +1,25 @@
+<VirtualHost *:443>
+    ServerName hostname
+
+    SSLEngine on
+    SSLCertificateFile /etc/letsencrypt/live/hostname/fullchain.pem
+    SSLCertificateKeyFile /etc/letsencrypt/live/hostname/privkey.pem
+
+    ProxyPreserveHost On
+    ProxyRequests Off
+
+    RequestHeader set X-Forwarded-Proto "https"
+    RequestHeader set X-Forwarded-Prefix "/resida"
+
+    RewriteEngine On
+    RewriteRule ^/resida$ /resida/ [R=301,L]
+
+    ProxyPass /resida/ http://127.0.0.1:8082/resida/ retry=0
+    ProxyPassReverse /resida/ http://127.0.0.1:8082/resida/
+</VirtualHost>
+
+<VirtualHost *:80>
+    ServerName hostname
+    RewriteEngine On
+    RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
+</VirtualHost>

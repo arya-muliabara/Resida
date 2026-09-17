@@ -1,0 +1,71 @@
+name: resida
+
+services:
+  web:
+    image: resida:1.0.6
+    env_file:
+      - /DATA/AppData/resida/.env
+    ports:
+      - "8082:8080"
+    volumes:
+      - type: bind
+        source: /DATA/AppData/resida/uploads
+        target: /app/uploads
+    networks:
+      - saa-pos_saa
+    restart: unless-stopped
+
+networks:
+  saa-pos_saa:
+    external: true
+
+x-casaos:
+  id: com.rukun.community
+  main: web
+  index: /
+  port_map: "8082"
+  scheme: http
+  icon: http://103.59.94.208:8082/icons/icon.svg
+  thumbnail: http://103.59.94.208:8082/icons/icon.svg
+  title:
+    custom: RUKUN
+    en_US: RUKUN
+    en_us: RUKUN
+    id_ID: RUKUN
+  tagline:
+    en_US: Residential community management platform
+    en_us: Residential community management platform
+    id_ID: Platform manajemen komunitas perumahan
+  description:
+    en_US: >-
+      RUKUN is a progressive web application for residential communities.
+      It centralizes resident registration and verification, announcements,
+      facility bookings, letters, voting, profiles, and document uploads.
+    en_us: >-
+      RUKUN is a progressive web application for residential communities.
+      It centralizes resident registration and verification, announcements,
+      facility bookings, letters, voting, profiles, and document uploads.
+    id_ID: >-
+      RUKUN adalah aplikasi web progresif untuk komunitas perumahan yang
+      memusatkan registrasi dan verifikasi penghuni, pengumuman, pemesanan
+      fasilitas, surat, voting, profil, dan unggahan dokumen.
+  author: SAA RUKUN
+  developer: SAA RUKUN
+  category: Productivity
+  architectures:
+    - amd64
+  version: "1.0.6"
+  update_at: "2026-09-02"
+  release_notes:
+    en_US: Added multi-house profile management, family member tabs, media uploads, active news, calendar/list booking tabs, and searchable lists.
+    en_us: Added multi-house profile management, family member tabs, media uploads, active news, calendar/list booking tabs, and searchable lists.
+    id_ID: Menambahkan manajemen multi rumah, tab anggota keluarga, upload media, status berita aktif, tab booking calendar/list, dan search di list.
+  website: http://103.59.94.208:8082
+  support: http://103.59.94.208:8082/docs
+  docs: http://103.59.94.208:8082/docs
+  store_app_id: rukun
+  tips:
+    before_install:
+      en_US: RUKUN uses the existing MySQL server and persists uploads in /DATA/AppData/resida/uploads.
+      en_us: RUKUN uses the existing MySQL server and persists uploads in /DATA/AppData/resida/uploads.
+      id_ID: RUKUN memakai server MySQL existing dan menyimpan unggahan di /DATA/AppData/resida/uploads.

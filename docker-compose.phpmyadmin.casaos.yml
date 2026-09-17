@@ -1,0 +1,56 @@
+name: phpmyadmin
+
+services:
+  phpmyadmin:
+    image: phpmyadmin:5.2.3
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+      PMA_ARBITRARY: "0"
+      UPLOAD_LIMIT: 64M
+    ports:
+      - "8091:80"
+    networks:
+      - saa-pos_saa
+    restart: unless-stopped
+
+networks:
+  saa-pos_saa:
+    external: true
+
+x-casaos:
+  id: com.resida.phpmyadmin
+  main: phpmyadmin
+  index: /
+  port_map: "8091"
+  scheme: http
+  icon: https://www.phpmyadmin.net/static/images/logo-og.png
+  thumbnail: https://www.phpmyadmin.net/static/images/logo-og.png
+  title:
+    custom: phpMyAdmin
+    en_US: phpMyAdmin
+    en_us: phpMyAdmin
+    id_ID: phpMyAdmin
+  tagline:
+    en_US: MySQL database administration for Resida
+    en_us: MySQL database administration for Resida
+    id_ID: Administrasi database MySQL untuk Resida
+  description:
+    en_US: phpMyAdmin provides a browser-based interface for managing the existing MySQL server used by Resida.
+    en_us: phpMyAdmin provides a browser-based interface for managing the existing MySQL server used by Resida.
+    id_ID: phpMyAdmin menyediakan antarmuka browser untuk mengelola server MySQL existing yang dipakai Resida.
+  author: SAA Resida
+  developer: phpMyAdmin
+  category: Developer
+  architectures:
+    - amd64
+  version: "5.2.3"
+  update_at: "2026-08-30"
+  release_notes:
+    en_US: Initial CasaOS deployment for the Resida MySQL server.
+    en_us: Initial CasaOS deployment for the Resida MySQL server.
+    id_ID: Rilis awal CasaOS untuk server MySQL Resida.
+  website: http://103.59.94.208:8091
+  support: https://docs.phpmyadmin.net/
+  docs: https://docs.phpmyadmin.net/
+  store_app_id: phpmyadmin

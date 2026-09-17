@@ -1,0 +1,17 @@
+services:
+  web:
+    build: .
+    env_file:
+      - .env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      APP_PORT: 8080
+    ports:
+      - "${HOST_PORT:-8082}:8080"
+    volumes:
+      - uploads_data:/app/uploads
+    restart: unless-stopped
+
+volumes:
+  uploads_data:

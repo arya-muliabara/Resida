@@ -1,0 +1,14 @@
+.env
+.DS_Store
+.venv/
+.pip-cache/
+__pycache__/
+*.pyc
+
+frontend/node_modules/
+frontend/.npm-cache/
+frontend/dist/
+
+uploads/*
+!uploads/.gitkeep
+

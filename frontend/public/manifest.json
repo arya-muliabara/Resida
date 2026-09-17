@@ -1,0 +1,12 @@
+{
+  "name": "RUKUN",
+  "short_name": "RUKUN",
+  "description": "Rukun dalam satu platform",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#f6f8fb",
+  "theme_color": "#1d6f74",
+  "icons": [
+    { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}

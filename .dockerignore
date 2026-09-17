@@ -1,0 +1,11 @@
+.git
+.env
+FSD_DOCUMENTS
+frontend/node_modules
+frontend/.npm-cache
+frontend/dist
+.venv
+.pip-cache
+__pycache__
+*.pyc
+.DS_Store
