@@ -8,6 +8,7 @@ from app.db.session import get_db
 from app.models.entities import Complex, ComplexAdministrator, DocumentType, NotificationType, RegistrationRequest, User, UserDocument, UserRole
 from app.schemas.users import LoginRequest, RegistrationRequestRead, UserRead, normalize_email_value
 from app.services.email import send_email
+from app.services.notifications import notify_users
 from app.services.uploads import save_upload
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -77,6 +78,12 @@ def register(
             NotificationType.email_verification,
             admin,
         )
+    notify_users(
+        db, admins, NotificationType.email_verification,
+        "Request pendaftaran penghuni baru",
+        f"Ada request pendaftaran baru untuk {complex_.name}: {email_value}. Silakan validasi di aplikasi RUKUN.",
+        "registration", registration.id,
+    )
     send_email(
         db,
         user.email,

@@ -5,8 +5,8 @@ from sqlalchemy.orm import Session
 from app.api.deps import require_roles
 from app.core.security import hash_password
 from app.db.session import get_db
-from app.models.entities import Complex, ComplexAdministrator, RegistrationRequest, RegistrationStatus, User, UserRole
-from app.schemas.users import ComplexCreate, ComplexRead, ComplexUpdate, UserCreate, UserRead, UserUpdate
+from app.models.entities import Complex, ComplexAdministrator, NotificationType, RegistrationRequest, RegistrationStatus, User, UserNotificationPreference, UserRole
+from app.schemas.users import ComplexCreate, ComplexRead, ComplexUpdate, NotificationPreferenceRead, NotificationPreferenceUpdate, UserCreate, UserRead, UserUpdate
 
 router = APIRouter(prefix="/complexes", tags=["complexes"])
 MANAGED_RESIDENT_ROLES = [UserRole.penghuni, UserRole.security, UserRole.supports]
@@ -264,6 +264,34 @@ def delete_resident(
     user.soft_delete()
     db.commit()
     return {"message": "User deleted"}
+
+
+@router.get("/residents/{user_id}/notification-preferences", response_model=NotificationPreferenceRead)
+def get_resident_notification_preferences(
+    user_id: int, db: Session = Depends(get_db), current: User = Depends(require_roles(UserRole.administrator))
+) -> NotificationPreferenceRead:
+    user = get_managed_resident(db, current, user_id)
+    enabled = db.scalars(select(UserNotificationPreference.type).where(
+        UserNotificationPreference.user_id == user.id, UserNotificationPreference.whatsapp_enabled.is_(True)
+    )).all()
+    return NotificationPreferenceRead(whatsapp_types=enabled)
+
+
+@router.put("/residents/{user_id}/notification-preferences", response_model=NotificationPreferenceRead)
+def update_resident_notification_preferences(
+    user_id: int, payload: NotificationPreferenceUpdate, db: Session = Depends(get_db), current: User = Depends(require_roles(UserRole.administrator))
+) -> NotificationPreferenceRead:
+    user = get_managed_resident(db, current, user_id)
+    selected = set(payload.whatsapp_types)
+    existing = {row.type: row for row in db.scalars(select(UserNotificationPreference).where(UserNotificationPreference.user_id == user.id)).all()}
+    for type_ in NotificationType:
+        row = existing.get(type_)
+        if not row:
+            row = UserNotificationPreference(user_id=user.id, type=type_)
+            db.add(row)
+        row.whatsapp_enabled = type_ in selected
+    db.commit()
+    return NotificationPreferenceRead(whatsapp_types=list(selected))
 
 
 @router.patch("/{complex_id}", response_model=ComplexRead)

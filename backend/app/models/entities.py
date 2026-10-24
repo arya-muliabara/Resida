@@ -70,6 +70,27 @@ class NotificationType(str, enum.Enum):
     event_created = "event_created"
 
 
+class WhatsAppGatewayConfig(Base):
+    __tablename__ = "m_whatsapp_gateway_config"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
+    base_url: Mapped[str | None] = mapped_column(String(255))
+    api_key: Mapped[str | None] = mapped_column(String(255))
+    sender_id: Mapped[str | None] = mapped_column(String(50))
+    is_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
+
+
+class UserNotificationPreference(Base):
+    __tablename__ = "m_user_notification_preferences"
+    __table_args__ = (UniqueConstraint("user_id", "type", name="uq_user_notification_preference"),)
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("m_users.id"), nullable=False, index=True)
+    type: Mapped[NotificationType] = mapped_column(Enum(NotificationType), nullable=False)
+    whatsapp_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+
+
 class NotificationStatus(str, enum.Enum):
     sent = "sent"
     failed = "failed"

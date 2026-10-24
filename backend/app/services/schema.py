@@ -1,7 +1,7 @@
 from sqlalchemy import inspect, text
 from sqlalchemy.engine import Engine
 
-from app.models.entities import AppNotification, Event, FamilyMember, FacilityMedia, House, HouseDocument, NewsMedia, Report, ReportAttachment, ReportFollowUp
+from app.models.entities import AppNotification, Event, FamilyMember, FacilityMedia, House, HouseDocument, NewsMedia, Report, ReportAttachment, ReportFollowUp, UserNotificationPreference, WhatsAppGatewayConfig
 
 
 def ensure_runtime_schema(engine: Engine) -> None:
@@ -57,6 +57,8 @@ def ensure_runtime_schema(engine: Engine) -> None:
     Report.__table__.create(bind=engine, checkfirst=True)
     ReportAttachment.__table__.create(bind=engine, checkfirst=True)
     ReportFollowUp.__table__.create(bind=engine, checkfirst=True)
+    WhatsAppGatewayConfig.__table__.create(bind=engine, checkfirst=True)
+    UserNotificationPreference.__table__.create(bind=engine, checkfirst=True)
 
     if engine.dialect.name == "mysql":
         with engine.begin() as connection:
