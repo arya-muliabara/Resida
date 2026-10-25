@@ -104,7 +104,12 @@ def update_profile(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> User:
-    for key, value in payload.model_dump(exclude_unset=True).items():
+    data = payload.model_dump(exclude_unset=True)
+    if "email" in data and data["email"] != user.email:
+        existing = db.scalar(select(User.id).where(User.email == data["email"], User.id != user.id))
+        if existing:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email sudah digunakan oleh akun lain")
+    for key, value in data.items():
         setattr(user, key, value)
     db.commit()
     db.refresh(user)

@@ -159,12 +159,20 @@ class UserUpdate(BaseModel):
 
 
 class ProfileUpdate(BaseModel):
-    full_name: str | None = Field(default=None, max_length=150)
-    phone: str | None = Field(default=None, max_length=20)
+    full_name: str | None = Field(default=None, min_length=2, max_length=150)
+    phone: str | None = Field(default=None, min_length=8, max_length=20)
+    email: str | None = None
     phone_secondary: str | None = Field(default=None, max_length=20)
     ktp_number: str | None = Field(default=None, max_length=20)
     unit_location: str | None = Field(default=None, max_length=100)
     photo_url: str | None = Field(default=None, max_length=255)
+
+    @field_validator("email", mode="before")
+    @classmethod
+    def normalize_optional_email(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        return normalize_email_value(value)
 
 
 class PasswordChange(BaseModel):

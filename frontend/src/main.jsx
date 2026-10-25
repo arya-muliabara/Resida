@@ -605,10 +605,13 @@ function NotificationBell({ api, onNavigate }) {
 function AccountMenu({ api, complexLogo = "", pwa }) {
   const [open, setOpen] = useState(false);
   const [passwordOpen, setPasswordOpen] = useState(false);
+  const [registrationOpen, setRegistrationOpen] = useState(false);
   const [logoutOpen, setLogoutOpen] = useState(false);
   const [passwordForm, setPasswordForm] = useState({ current_password: "", new_password: "" });
+  const [registrationForm, setRegistrationForm] = useState({ full_name: "", phone: "", email: "" });
   const [message, setMessage] = useState("");
   const menuRef = useRef(null);
+  const canUpdateRegistration = ["penghuni", "pengurus"].includes(api.user?.role);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -626,6 +629,26 @@ function AccountMenu({ api, complexLogo = "", pwa }) {
       await api.request("/profile/password", { method: "PATCH", body: JSON.stringify(passwordForm) });
       setPasswordForm({ current_password: "", new_password: "" });
       setPasswordOpen(false);
+    } catch (error) {
+      setMessage(error.message);
+    }
+  };
+
+  const openRegistration = () => {
+    setOpen(false);
+    setMessage("");
+    setRegistrationForm({ full_name: api.user.full_name || "", phone: api.user.phone || "", email: api.user.email || "" });
+    setRegistrationOpen(true);
+  };
+
+  const updateRegistration = async (event) => {
+    event.preventDefault();
+    setMessage("");
+    try {
+      const updated = await api.request("/profile", { method: "PATCH", body: JSON.stringify(registrationForm) });
+      api.setUser(updated);
+      localStorage.setItem("user", JSON.stringify(updated));
+      setRegistrationOpen(false);
     } catch (error) {
       setMessage(error.message);
     }
@@ -662,6 +685,7 @@ function AccountMenu({ api, complexLogo = "", pwa }) {
             <div><strong>{api.user.full_name || "User"}</strong><span>{roleLabel(api.user.role)}</span></div>
           </div>
           <button type="button" onClick={() => { setOpen(false); setMessage(""); setPasswordOpen(true); }}><Icon name="lock" />Ubah Password</button>
+          {canUpdateRegistration && <button type="button" onClick={openRegistration}><Icon name="edit" />Ubah Data Pengguna</button>}
           <button type="button" onClick={refreshApp}><Icon name="refresh" />Check update</button>
           {pwa.canInstall && <button type="button" onClick={installApp}><Icon name="download" />Install Aplikasi</button>}
           <button type="button" onClick={confirmLogout}><Icon name="logout" />Logout</button>
@@ -674,6 +698,18 @@ function AccountMenu({ api, complexLogo = "", pwa }) {
             <FormField label="Password Lama"><input type="password" placeholder="Masukkan password lama" value={passwordForm.current_password} onChange={(e) => setPasswordForm({ ...passwordForm, current_password: e.target.value })} required /></FormField>
             <FormField label="Password Baru"><input type="password" placeholder="Minimal 8 karakter" value={passwordForm.new_password} onChange={(e) => setPasswordForm({ ...passwordForm, new_password: e.target.value })} required /></FormField>
             <button className="primary">Ubah password</button>
+          </form>
+        </Modal>
+      )}
+      {registrationOpen && (
+        <Modal title="Ubah Data Pengguna" onClose={() => { setMessage(""); setRegistrationOpen(false); }}>
+          <form className="composer flat" onSubmit={updateRegistration}>
+            {message && <p className="notice">{message}</p>}
+            <p className="form-help">Perbarui data kontak yang digunakan saat pendaftaran.</p>
+            <FormField label="Nama Lengkap"><input placeholder="Masukkan nama lengkap" value={registrationForm.full_name} onChange={(e) => setRegistrationForm({ ...registrationForm, full_name: e.target.value })} minLength={2} maxLength={150} required /></FormField>
+            <FormField label="Nomor Telepon"><input type="tel" inputMode="tel" placeholder="Contoh: 081234567890" value={registrationForm.phone} onChange={(e) => setRegistrationForm({ ...registrationForm, phone: e.target.value })} minLength={8} maxLength={20} required /></FormField>
+            <FormField label="Email"><input type="email" placeholder="contoh@email.com" value={registrationForm.email} onChange={(e) => setRegistrationForm({ ...registrationForm, email: e.target.value })} required /></FormField>
+            <button className="primary"><Icon name="edit" />Simpan Perubahan</button>
           </form>
         </Modal>
       )}
