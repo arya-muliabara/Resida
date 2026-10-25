@@ -9,7 +9,8 @@ from app.models.entities import COMPLEX_ADMIN_ROLES, Complex, ComplexAdministrat
 from app.schemas.users import ComplexCreate, ComplexRead, ComplexUpdate, NotificationPreferenceRead, NotificationPreferenceUpdate, UserCreate, UserRead, UserUpdate
 
 router = APIRouter(prefix="/complexes", tags=["complexes"])
-MANAGED_RESIDENT_ROLES = [UserRole.pengurus, UserRole.penghuni, UserRole.security, UserRole.supports]
+# Kelola ID Penghuni mencakup seluruh akun pada komplek, kecuali Superadmin.
+MANAGED_RESIDENT_ROLES = [UserRole.administrator, UserRole.pengurus, UserRole.penghuni, UserRole.security, UserRole.supports]
 
 
 def ensure_admin_complex(current: User) -> int:
@@ -199,7 +200,7 @@ def create_resident(
 ) -> User:
     complex_id = ensure_admin_complex(current)
     if payload.role not in MANAGED_RESIDENT_ROLES:
-        raise HTTPException(status_code=400, detail="Role hanya boleh Pengurus, Penghuni, Security, atau Supports")
+        raise HTTPException(status_code=400, detail="Role hanya boleh Administrator, Pengurus, Penghuni, Security, atau Supports")
     if db.scalar(select(User.id).where(User.email == payload.email)):
         raise HTTPException(status_code=409, detail="Email already registered")
     user = User(
@@ -227,7 +228,7 @@ def update_resident(
     data = payload.model_dump(exclude_unset=True)
     data.pop("complex_id", None)
     if "role" in data and data["role"] not in MANAGED_RESIDENT_ROLES:
-        raise HTTPException(status_code=400, detail="Role hanya boleh Pengurus, Penghuni, Security, atau Supports")
+        raise HTTPException(status_code=400, detail="Role hanya boleh Administrator, Pengurus, Penghuni, Security, atau Supports")
     if "email" in data and data["email"] != user.email and db.scalar(select(User.id).where(User.email == data["email"], User.id != user_id)):
         raise HTTPException(status_code=409, detail="Email already registered")
     password = data.pop("password", None)
