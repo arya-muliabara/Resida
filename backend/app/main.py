@@ -8,7 +8,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.exc import OperationalError
 
-from app.api import auth, complexes, events, facilities, letters, management_reports, marketplace, news, notifications, profile, purchase_requests, registrations, reports, uploads, votings
+from app.api import auth, complexes, events, facilities, letters, management_reports, marketplace, news, notifications, profile, purchase_requests, registrations, reports, uploads, votings, whatsapp
 from app.core.config import get_settings
 from app.db.session import Base, SessionLocal, engine
 from app.models import entities  # noqa: F401
@@ -42,6 +42,7 @@ api_routers = [
     notifications.router,
     registrations.router,
     uploads.router,
+    whatsapp.router,
 ]
 for router in api_routers:
     app.include_router(router, prefix="/api")

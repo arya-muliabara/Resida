@@ -419,7 +419,7 @@ function App() {
         setComplexLogo("");
       });
   }, [api.user?.complex_id, isSuper]);
-  const superTabs = ["complex-management", "user-access"];
+  const superTabs = ["complex-management", "user-access", "whatsapp-gateway"];
   const activeTab = isSuper ? (superTabs.includes(tab) ? tab : "complex-management") : tab;
   const navItems = isSuper ? superTabs : ["home", "letters", "lapor", "booking", "profile"];
   const goTab = (item) => {
@@ -452,6 +452,7 @@ function App() {
           {activeTab === "letters" && <RequestHub api={api} isAdmin={isAdmin} isSecurity={isSecurity} />}
           {activeTab === "complex-management" && isSuper && <ComplexManagement api={api} />}
           {activeTab === "user-access" && isSuper && <UserAccess api={api} />}
+          {activeTab === "whatsapp-gateway" && isSuper && <WhatsAppGateway api={api} />}
         </ErrorBoundary>
       </main>
       <nav className="bottom-nav">
@@ -480,6 +481,7 @@ function label(tab, isAdmin = false) {
     registrations: "Daftar",
     "complex-management": "Manajemen Komplek",
     "user-access": "User Access",
+    "whatsapp-gateway": "WhatsApp Gateway",
   }[tab] || tab;
 }
 
@@ -493,6 +495,7 @@ function navIcon(tab) {
     registrations: "users",
     "complex-management": "building",
     "user-access": "users",
+    "whatsapp-gateway": "megaphone",
   }[tab] || "circle";
 }
 
@@ -2155,6 +2158,20 @@ function Letters({ api, isAdmin }) {
   );
 }
 
+function WhatsAppGateway({ api }) {
+  const [form, setForm] = useState({ base_url: "", api_key: "", sender_id: "", is_enabled: false });
+  const [senders, setSenders] = useState([]);
+  const [message, setMessage] = useState("");
+  useEffect(() => { api.request("/whatsapp-gateway").then((row) => setForm((old) => ({ ...old, ...row }))).catch((error) => setMessage(error.message)); }, []);
+  const save = async (event) => { event.preventDefault(); try { const row = await api.request("/whatsapp-gateway", { method: "PATCH", body: JSON.stringify(form) }); setForm((old) => ({ ...old, ...row })); setMessage("Konfigurasi WhatsApp disimpan."); } catch (error) { setMessage(error.message); } };
+  const loadSenders = async () => { try { const rows = await api.request("/whatsapp-gateway/senders"); setSenders(asArray(rows)); setMessage(rows.length ? "Pilih sender aktif dari gateway." : "Tidak ada sender yang tersedia."); } catch (error) { setMessage(error.message); } };
+  return <section className="page"><div className="page-head"><h2>WhatsApp Gateway</h2></div><p>Hubungkan gateway WA, pilih sender, lalu notifikasi pengguna yang dicentang akan dikirim melalui sender ini.</p>{message && <p className="notice">{message}</p>}<form className="composer flat" onSubmit={save}><input placeholder="URL wa-gateway, contoh https://notif.asabiz.id" value={form.base_url || ""} onChange={(e) => setForm({ ...form, base_url: e.target.value })} required /><input type="password" placeholder="API key wa-gateway" value={form.api_key || ""} onChange={(e) => setForm({ ...form, api_key: e.target.value })} /><div className="row"><select value={form.sender_id || ""} onChange={(e) => setForm({ ...form, sender_id: e.target.value })} required><option value="">Pilih sender</option>{senders.map((sender) => <option key={sender.id} value={sender.id}>{sender.name || sender.id}{sender.status ? ` (${sender.status})` : ""}</option>)}</select><button type="button" onClick={loadSenders}>Muat sender</button></div><label className="choice"><input type="checkbox" checked={!!form.is_enabled} onChange={(e) => setForm({ ...form, is_enabled: e.target.checked })} /><span>Aktifkan pengiriman WhatsApp</span></label><button className="primary">Simpan konfigurasi</button></form></section>;
+}
+
+const WA_NOTIFICATION_TYPES = [
+  ["email_verification", "Request pendaftaran"], ["booking_confirmation", "Permintaan booking"], ["news_published", "Berita dipublikasikan"], ["news_contribution", "Kontribusi berita"], ["voting_reminder", "Pengingat voting"], ["letter_request_update", "Request surat"], ["report_created", "Laporan baru"], ["report_updated", "Update laporan"], ["event_created", "Event baru"],
+];
+
 function ResidentManagement({ api }) {
   const [users, setUsers] = useState([]);
   const [query, setQuery] = useState("");
@@ -2162,17 +2179,23 @@ function ResidentManagement({ api }) {
   const [editing, setEditing] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [message, setMessage] = useState("");
+  const [formTab, setFormTab] = useState("profile");
+  const [whatsappTypes, setWhatsappTypes] = useState([]);
   const load = () => api.request("/complexes/residents").then((data) => setUsers(asArray(data))).catch((error) => { setUsers([]); setMessage(error.message); });
   useEffect(() => { load(); }, []);
   const openCreate = () => {
     setMessage("");
     setEditing(null);
+    setFormTab("profile");
+    setWhatsappTypes([]);
     setForm({ full_name: "", email: "", password: "User12345", role: "penghuni", phone: "", is_email_verified: true, is_active: true });
     setShowForm(true);
   };
   const openEdit = (user) => {
     setMessage("");
     setEditing(user);
+    setFormTab("profile");
+    api.request(`/complexes/residents/${user.id}/notification-preferences`).then((data) => setWhatsappTypes(data.whatsapp_types || [])).catch(() => setWhatsappTypes([]));
     setForm({ full_name: user.full_name || "", email: user.email || "", password: "", role: user.role || "penghuni", phone: user.phone || "", is_email_verified: user.is_email_verified !== false, is_active: user.is_active !== false });
     setShowForm(true);
   };
@@ -2183,6 +2206,7 @@ function ResidentManagement({ api }) {
     if (editing && !payload.password) delete payload.password;
     try {
       await api.request(editing ? `/complexes/residents/${editing.id}` : "/complexes/residents", { method: editing ? "PATCH" : "POST", body: JSON.stringify(payload) });
+      if (editing) await api.request(`/complexes/residents/${editing.id}/notification-preferences`, { method: "PUT", body: JSON.stringify({ whatsapp_types: whatsappTypes }) });
       setShowForm(false);
       setEditing(null);
       load();
@@ -2209,10 +2233,10 @@ function ResidentManagement({ api }) {
       <div className="page-head"><h2>Kelola ID Penghuni</h2><input className="search-input" placeholder="Cari user" value={query} onChange={(e) => setQuery(e.target.value)} /><button className="primary resident-add-button" type="button" onClick={openCreate}><Icon name="plus" />Tambah User</button></div>
       {message && <p className="notice">{message}</p>}
       <div className="list">
-        {filtered.map((user) => <div className="list-item" key={user.id}><div className="item-heading"><strong>{user.full_name}</strong><span className={`status ${user.is_active ? "approved" : "rejected"}`}>{user.is_active ? "active" : "non active"}</span></div><span>{user.email}</span><span>{roleLabel(user.role)}{user.phone ? ` - ${user.phone}` : ""}</span><div className="row actions resident-actions"><button className="action-edit" type="button" onClick={() => openEdit(user)}><Icon name="edit" />Edit</button><button className={user.is_active ? "action-warning" : "action-done"} type="button" onClick={() => toggleActive(user)}><Icon name={user.is_active ? "lock" : "vote"} />{user.is_active ? "Nonaktifkan" : "Aktifkan"}</button><button className="action-delete" type="button" onClick={() => remove(user)}><Icon name="trash" />Delete</button></div></div>)}
+        {filtered.map((user) => <div className="list-item" key={user.id}><div className="item-heading"><strong>{user.full_name}</strong><span className={`status ${user.is_active ? "approved" : "rejected"}`}>{user.is_active ? "active" : "non active"}</span></div><span>UserID {user.id} · {user.email}</span><span>{roleLabel(user.role)}{user.phone ? ` · WA: ${user.phone}` : ""}</span><div className="row actions resident-actions"><button className="action-edit" type="button" onClick={() => openEdit(user)}><Icon name="edit" />Edit</button><button className={user.is_active ? "action-warning" : "action-done"} type="button" onClick={() => toggleActive(user)}><Icon name={user.is_active ? "lock" : "vote"} />{user.is_active ? "Nonaktifkan" : "Aktifkan"}</button><button className="action-delete" type="button" onClick={() => remove(user)}><Icon name="trash" />Delete</button></div></div>)}
         {!filtered.length && <Empty text="Belum ada user komplek." />}
       </div>
-      {showForm && <Modal title={editing ? "Edit User" : "Tambah User"} onClose={() => { setShowForm(false); setEditing(null); }}><form className="composer flat" onSubmit={save}>{message && <p className="notice">{message}</p>}<FormField label="Nama User"><input placeholder="Masukkan nama lengkap" value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} required /></FormField><FormField label="Email"><input type="email" placeholder="contoh@email.com" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required /></FormField><FormField label={editing ? "Password Baru" : "Password"}><input type="password" placeholder={editing ? "Kosongkan bila tidak diubah" : "Minimal 8 karakter"} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required={!editing} /></FormField><FormField label="Peran"><select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}><option value="pengurus">Pengurus</option><option value="penghuni">Penghuni</option><option value="security">Security</option><option value="supports">Supports</option></select></FormField><FormField label="Telepon"><input placeholder="Masukkan nomor telepon" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></FormField><label className="choice"><input type="checkbox" checked={form.is_email_verified} onChange={(e) => setForm({ ...form, is_email_verified: e.target.checked })} /><span>Email verified</span></label><label className="choice"><input type="checkbox" checked={form.is_active} onChange={(e) => setForm({ ...form, is_active: e.target.checked })} /><span>Aktif</span></label><button className="primary resident-save-button"><Icon name={editing ? "edit" : "plus"} />{editing ? "Simpan User" : "Buat User"}</button></form></Modal>}
+      {showForm && <Modal title={editing ? "Edit User" : "Tambah User"} onClose={() => { setShowForm(false); setEditing(null); }}><form className="composer flat" onSubmit={save}>{message && <p className="notice">{message}</p>}{editing && <div className="tabs"><button type="button" className={formTab === "profile" ? "active" : ""} onClick={() => setFormTab("profile")}>Data User</button><button type="button" className={formTab === "notifications" ? "active" : ""} onClick={() => setFormTab("notifications")}>Kelola Notifikasi</button></div>}{formTab === "profile" && <><FormField label="Nama User"><input placeholder="Masukkan nama lengkap" value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} required /></FormField><FormField label="Email"><input type="email" placeholder="contoh@email.com" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required /></FormField><FormField label={editing ? "Password Baru" : "Password"}><input type="password" placeholder={editing ? "Kosongkan bila tidak diubah" : "Minimal 8 karakter"} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required={!editing} /></FormField><FormField label="Peran"><select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}><option value="pengurus">Pengurus</option><option value="penghuni">Penghuni</option><option value="security">Security</option><option value="supports">Supports</option></select></FormField><FormField label="Nomor WhatsApp"><input placeholder="Contoh: 0812xxxx" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></FormField><label className="choice"><input type="checkbox" checked={form.is_email_verified} onChange={(e) => setForm({ ...form, is_email_verified: e.target.checked })} /><span>Email verified</span></label><label className="choice"><input type="checkbox" checked={form.is_active} onChange={(e) => setForm({ ...form, is_active: e.target.checked })} /><span>Aktif</span></label></>}{editing && formTab === "notifications" && <div><p>Pilih notifikasi WhatsApp yang akan diterima oleh user ini.</p>{WA_NOTIFICATION_TYPES.map(([key, text]) => <label className="choice" key={key}><input type="checkbox" checked={whatsappTypes.includes(key)} onChange={(e) => setWhatsappTypes(e.target.checked ? [...whatsappTypes, key] : whatsappTypes.filter((type) => type !== key))} /><span>{text}</span></label>)}</div>}<button className="primary resident-save-button"><Icon name={editing ? "edit" : "plus"} />{editing ? "Simpan User" : "Buat User"}</button></form></Modal>}
     </section>
   );
 }

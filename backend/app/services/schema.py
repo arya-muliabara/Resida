@@ -1,7 +1,7 @@
 from sqlalchemy import inspect, text
 from sqlalchemy.engine import Engine
 
-from app.models.entities import AppNotification, Event, FamilyMember, FacilityMedia, House, HouseDocument, HouseIplPayment, ManagementReport, ManagementReportImage, MarketplaceComment, MarketplaceImage, MarketplaceLike, MarketplacePost, NewsMedia, PurchaseRequest, PurchaseRequestItem, Report, ReportAttachment, ReportFollowUp
+from app.models.entities import AppNotification, Event, FamilyMember, FacilityMedia, House, HouseDocument, HouseIplPayment, ManagementReport, ManagementReportImage, MarketplaceComment, MarketplaceImage, MarketplaceLike, MarketplacePost, NewsMedia, PurchaseRequest, PurchaseRequestItem, Report, ReportAttachment, ReportFollowUp, UserNotificationPreference, WhatsAppGatewayConfig
 
 
 def ensure_runtime_schema(engine: Engine) -> None:
@@ -102,6 +102,8 @@ def ensure_runtime_schema(engine: Engine) -> None:
         with engine.begin() as connection:
             for alter in management_report_alters:
                 connection.execute(text(f"ALTER TABLE trx_management_reports {alter}"))
+    WhatsAppGatewayConfig.__table__.create(bind=engine, checkfirst=True)
+    UserNotificationPreference.__table__.create(bind=engine, checkfirst=True)
 
     if engine.dialect.name == "mysql":
         with engine.begin() as connection:

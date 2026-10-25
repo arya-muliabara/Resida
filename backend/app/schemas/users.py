@@ -54,6 +54,28 @@ class UserRead(ORMModel):
     is_active: bool
 
 
+class NotificationPreferenceUpdate(BaseModel):
+    whatsapp_types: list[NotificationType] = []
+
+
+class NotificationPreferenceRead(BaseModel):
+    whatsapp_types: list[NotificationType] = []
+
+
+class WhatsAppGatewayConfigUpdate(BaseModel):
+    base_url: str | None = Field(default=None, max_length=255)
+    api_key: str | None = Field(default=None, max_length=255)
+    sender_id: str | None = Field(default=None, max_length=50)
+    is_enabled: bool | None = None
+
+
+class WhatsAppGatewayConfigRead(BaseModel):
+    base_url: str | None = None
+    sender_id: str | None = None
+    is_enabled: bool = False
+    configured: bool = False
+
+
 class RegisterRequest(BaseModel):
     full_name: str = Field(min_length=2, max_length=150)
     phone: str = Field(min_length=8, max_length=20)

@@ -9,6 +9,7 @@ from app.db.session import get_db
 from app.models.entities import Complex, NotificationType, RegistrationRequest, RegistrationStatus, User, UserRole
 from app.schemas.users import RegistrationRequestRead, RegistrationReview
 from app.services.email import send_email
+from app.services.notifications import notify_users
 
 router = APIRouter(prefix="/registrations", tags=["registrations"])
 
@@ -85,6 +86,7 @@ def review_registration_request(
         body = f"Pendaftaran Anda ditolak oleh administrator. Catatan: {payload.admin_notes}"
 
     send_email(db, user.email, subject, body, NotificationType.email_verification, user)
+    notify_users(db, [user], NotificationType.email_verification, subject, body, "registration", item.id)
     db.commit()
     db.refresh(item)
     return serialize_registration(db, item)
