@@ -54,9 +54,9 @@ def discover_senders(db: Session = Depends(get_db), _: User = Depends(require_ro
     if not config.base_url or not config.api_key:
         raise HTTPException(status_code=400, detail="Simpan URL gateway dan API key terlebih dahulu")
     try:
-        data = read_json(f"{config.base_url}/api/v1/admin/senders", config.api_key)
+        data = read_json(f"{config.base_url}/api/v1/senders", config.api_key)
     except HTTPError as exc:
-        raise HTTPException(status_code=502, detail=f"Gateway menolak discovery sender (HTTP {exc.code}). Pastikan API key memiliki akses sender.view.") from exc
+        raise HTTPException(status_code=502, detail=f"Gateway menolak discovery sender (HTTP {exc.code}). Pastikan API key memiliki scope send.") from exc
     except (URLError, TimeoutError, ValueError) as exc:
         raise HTTPException(status_code=502, detail=f"Gateway tidak dapat dihubungi: {exc}") from exc
     rows = data.get("items", data) if isinstance(data, dict) else data
