@@ -2169,7 +2169,7 @@ function WhatsAppGateway({ api }) {
 }
 
 const WA_NOTIFICATION_TYPES = [
-  ["email_verification", "Request pendaftaran"], ["booking_confirmation", "Permintaan booking"], ["news_published", "Berita dipublikasikan"], ["news_contribution", "Kontribusi berita"], ["voting_reminder", "Pengingat voting"], ["letter_request_update", "Request surat"], ["report_created", "Laporan baru"], ["report_updated", "Update laporan"], ["event_created", "Event baru"],
+  ["email_verification", "Request pendaftaran"], ["booking_confirmation", "Permintaan booking"], ["news_published", "Berita dipublikasikan"], ["news_contribution", "Kontribusi berita"], ["voting_reminder", "Pengingat voting"], ["letter_request_update", "Request surat"], ["report_created", "Laporan baru"], ["report_updated", "Update laporan"], ["event_created", "Event baru"], ["purchase_request", "Permintaan Pembelian"], ["management_report", "Laporan Pengelola"],
 ];
 
 function ResidentManagement({ api }) {
