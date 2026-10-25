@@ -1,16 +1,18 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
 from app.core.security import hash_password, verify_password
 from app.db.session import get_db
-from app.models.entities import FamilyMember, House, HouseDocument, User, UserDocument, UserRole
+from app.models.entities import FamilyMember, House, HouseDocument, HouseIplPayment, User, UserDocument, UserRole
 from app.schemas.users import (
     FamilyMemberCreate,
     FamilyMemberRead,
     FamilyMemberUpdate,
     HouseCreate,
+    HouseIplPaymentRead,
+    HouseIplPaymentUpdate,
     HouseRead,
     HouseUpdate,
     PasswordChange,
@@ -77,13 +79,17 @@ def resolve_house_user_id(db: Session, current: User, requested_user_id: int | N
 
 
 def sync_house_documents(db: Session, house: House, document_urls: list[str]) -> None:
-    for document in db.scalars(
+    requested_urls = list(dict.fromkeys(str(url).strip() for url in document_urls if str(url).strip()))
+    active_documents = list(db.scalars(
         select(HouseDocument).where(HouseDocument.house_id == house.id, HouseDocument.is_deleted.is_(False))
-    ):
-        document.soft_delete()
-    for url in document_urls:
-        clean_url = str(url).strip()
-        if clean_url:
+    ))
+    active_by_url = {document.file_url: document for document in active_documents}
+    requested_set = set(requested_urls)
+    for document in active_documents:
+        if document.file_url not in requested_set:
+            document.soft_delete()
+    for clean_url in requested_urls:
+        if clean_url not in active_by_url:
             db.add(HouseDocument(house_id=house.id, file_url=clean_url, file_name=clean_url.rsplit("/", 1)[-1]))
 
 
@@ -128,6 +134,57 @@ def read_house(db: Session = Depends(get_db), user: User = Depends(get_current_u
 def list_houses(db: Session = Depends(get_db), user: User = Depends(get_current_user)) -> list[HouseRead]:
     houses = db.scalars(house_scope_query(user).order_by(House.block.asc(), House.number.asc(), House.id.desc())).all()
     return [serialize_house(db, house) for house in houses]
+
+
+@router.get("/houses/{house_id}/ipl", response_model=list[HouseIplPaymentRead])
+def list_house_ipl_payments(
+    house_id: int,
+    year: int = Query(..., ge=2000, le=2200),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> list[HouseIplPayment]:
+    get_scoped_house(db, user, house_id)
+    return db.scalars(
+        select(HouseIplPayment)
+        .where(
+            HouseIplPayment.house_id == house_id,
+            HouseIplPayment.payment_year == year,
+            HouseIplPayment.is_deleted.is_(False),
+        )
+        .order_by(HouseIplPayment.payment_month.asc())
+    ).all()
+
+
+@router.put("/houses/{house_id}/ipl/{year}/{month}", response_model=HouseIplPaymentRead)
+def upsert_house_ipl_payment(
+    house_id: int,
+    year: int,
+    month: int,
+    payload: HouseIplPaymentUpdate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> HouseIplPayment:
+    if user.role != UserRole.administrator:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Hanya Administrator Komplek yang dapat mengubah IPL")
+    if not 2000 <= year <= 2200 or not 1 <= month <= 12:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Periode IPL tidak valid")
+    get_scoped_house(db, user, house_id)
+    payment = db.scalar(
+        select(HouseIplPayment).where(
+            HouseIplPayment.house_id == house_id,
+            HouseIplPayment.payment_year == year,
+            HouseIplPayment.payment_month == month,
+            HouseIplPayment.is_deleted.is_(False),
+        )
+    )
+    if not payment:
+        payment = HouseIplPayment(house_id=house_id, payment_year=year, payment_month=month)
+        db.add(payment)
+    payment.amount = payload.amount
+    payment.is_paid = payload.is_paid
+    db.commit()
+    db.refresh(payment)
+    return payment
 
 
 @router.post("/houses", response_model=HouseRead, status_code=status.HTTP_201_CREATED)
@@ -201,6 +258,8 @@ def delete_house(house_id: int, db: Session = Depends(get_db), user: User = Depe
         member.soft_delete()
     for document in db.scalars(select(HouseDocument).where(HouseDocument.house_id == house.id, HouseDocument.is_deleted.is_(False))):
         document.soft_delete()
+    for payment in db.scalars(select(HouseIplPayment).where(HouseIplPayment.house_id == house.id, HouseIplPayment.is_deleted.is_(False))):
+        payment.soft_delete()
     house.soft_delete()
     db.commit()
     return {"message": "House profile deleted"}

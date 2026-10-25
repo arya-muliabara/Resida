@@ -1,13 +1,14 @@
+import re
 import time
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.exc import OperationalError
 
-from app.api import auth, complexes, events, facilities, letters, news, notifications, profile, registrations, reports, uploads, votings
+from app.api import auth, complexes, events, facilities, letters, management_reports, marketplace, news, notifications, profile, purchase_requests, registrations, reports, uploads, votings
 from app.core.config import get_settings
 from app.db.session import Base, SessionLocal, engine
 from app.models import entities  # noqa: F401
@@ -15,7 +16,7 @@ from app.services.schema import ensure_runtime_schema
 from app.services.seed import seed_initial_data
 
 settings = get_settings()
-app = FastAPI(title=f"{settings.app_name} API", version="1.0.0")
+app = FastAPI(title=f"{settings.app_name} API", version="1.3.33")
 
 app.add_middleware(
     CORSMiddleware,
@@ -30,6 +31,9 @@ api_routers = [
     complexes.router,
     profile.router,
     news.router,
+    marketplace.router,
+    management_reports.router,
+    purchase_requests.router,
     facilities.router,
     votings.router,
     letters.router,
@@ -86,6 +90,30 @@ if settings.app_public_path:
 
 dist = Path(settings.frontend_dist_dir)
 if dist.exists():
+    legacy_bundle_pattern = re.compile(r"(?:^|/)assets/index-[^/]+\.(js|css)$")
+
+    @app.middleware("http")
+    async def recover_stale_frontend_bundle(request: Request, call_next):
+        response = await call_next(request)
+        if response.status_code != 404 or not legacy_bundle_pattern.search(request.url.path):
+            return response
+
+        suffix = Path(request.url.path).suffix
+        current_bundles = sorted(
+            (dist / "assets").glob(f"index-*{suffix}"),
+            key=lambda candidate: candidate.stat().st_mtime,
+            reverse=True,
+        )
+        if not current_bundles:
+            return response
+
+        media_type = "application/javascript" if suffix == ".js" else "text/css"
+        return FileResponse(
+            current_bundles[0],
+            media_type=media_type,
+            headers={"Cache-Control": "no-store, max-age=0", "X-Rukun-Asset-Recovery": "current"},
+        )
+
     app.mount("/assets", StaticFiles(directory=dist / "assets"), name="assets")
     if settings.app_public_path:
         app.mount(f"{settings.app_public_path}/assets", StaticFiles(directory=dist / "assets"), name="public_assets")
@@ -96,8 +124,9 @@ def frontend_response(full_path: str) -> FileResponse:
     if index.exists():
         target = dist / full_path
         if full_path and target.exists() and target.is_file():
-            return FileResponse(target)
-        return FileResponse(index)
+            headers = {"Cache-Control": "no-store, max-age=0"} if full_path == "rukun.webmanifest" or full_path.startswith("icons/rukun-app-") else None
+            return FileResponse(target, headers=headers)
+        return FileResponse(index, headers={"Cache-Control": "no-store, max-age=0"})
     return FileResponse(Path(__file__).parent / "static" / "fallback.html")
 
 

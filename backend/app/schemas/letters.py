@@ -56,6 +56,7 @@ class LetterReplyRead(ORMModel):
     note: str
     status_after: LetterStatus
     created_at: datetime | None = None
+    user_name: str | None = None
 
 
 class LetterAttachmentRead(ORMModel):

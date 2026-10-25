@@ -3,12 +3,30 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#1d6f74" />
-    <link rel="manifest" href="./manifest.json" />
-    <link rel="icon" href="./icons/icon.svg" />
+    <meta name="theme-color" content="#155f73" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="RUKUN" />
+    <link rel="manifest" href="./rukun.webmanifest?v=20260912-2" />
+    <link rel="icon" type="image/png" sizes="512x512" href="./icons/rukun-app-512.png?v=20260912-2" />
+    <link rel="apple-touch-icon" href="./icons/rukun-app-192.png?v=20260912-2" />
     <title>RUKUN</title>
+    <style>
+      html, body { margin: 0; min-height: 100%; background: #155f73; }
+      #app-splash { position: fixed; inset: 0; z-index: 9999; display: grid; place-content: center; justify-items: center; gap: 12px; padding: 24px; color: #fff; background: #155f73; font-family: Arial, sans-serif; text-align: center; transition: opacity .25s ease, visibility .25s ease; }
+      #app-splash img { width: min(42vw, 180px); height: auto; border-radius: 24%; }
+      #app-splash strong { font-size: 26px; letter-spacing: .08em; }
+      #app-splash span { color: rgba(255,255,255,.8); font-size: 13px; }
+      #app-splash.is-hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+    </style>
   </head>
   <body>
+    <div id="app-splash" aria-label="Memuat RUKUN">
+      <img src="./images/rukun-logo.png" alt="" />
+      <strong>RUKUN</strong>
+      <span>Management Rukun dalam satu platform</span>
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

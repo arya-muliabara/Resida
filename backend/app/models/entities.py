@@ -1,14 +1,16 @@
 import enum
-from datetime import datetime
+from datetime import date, datetime
 
 from sqlalchemy import (
     BigInteger,
     Boolean,
+    Date,
     DateTime,
     Enum,
     ForeignKey,
     Index,
     Integer,
+    Numeric,
     String,
     Text,
     UniqueConstraint,
@@ -22,9 +24,13 @@ from app.db.session import Base
 class UserRole(str, enum.Enum):
     superadmin = "superadmin"
     administrator = "administrator"
+    pengurus = "pengurus"
     penghuni = "penghuni"
     security = "security"
     supports = "supports"
+
+
+COMPLEX_ADMIN_ROLES = (UserRole.administrator, UserRole.pengurus)
 
 
 class DocumentType(str, enum.Enum):
@@ -41,6 +47,36 @@ class BookingStatus(str, enum.Enum):
 
 
 class RegistrationStatus(str, enum.Enum):
+    pending = "pending"
+    approved = "approved"
+    rejected = "rejected"
+
+
+class MarketplaceStatus(str, enum.Enum):
+    pending = "pending"
+    approved = "approved"
+    rejected = "rejected"
+
+
+class MarketplaceItemType(str, enum.Enum):
+    barang = "barang"
+    jasa = "jasa"
+
+
+class PurchaseRequestStatus(str, enum.Enum):
+    requested = "requested"
+    approved = "approved"
+    rejected = "rejected"
+    completed = "completed"
+
+
+class ManagementReportType(str, enum.Enum):
+    shift_change = "shift_change"
+    work_report = "work_report"
+    incidental = "incidental"
+
+
+class ManagementReportStatus(str, enum.Enum):
     pending = "pending"
     approved = "approved"
     rejected = "rejected"
@@ -68,6 +104,8 @@ class NotificationType(str, enum.Enum):
     report_created = "report_created"
     report_updated = "report_updated"
     event_created = "event_created"
+    purchase_request = "purchase_request"
+    management_report = "management_report"
 
 
 class NotificationStatus(str, enum.Enum):
@@ -244,6 +282,43 @@ class ReportFollowUp(TimestampMixin, Base):
     status_after: Mapped[ReportStatus] = mapped_column(Enum(ReportStatus), nullable=False)
 
 
+class ManagementReport(TimestampMixin, Base):
+    __tablename__ = "trx_management_reports"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    complex_id: Mapped[int] = mapped_column(ForeignKey("m_complexes.id"), nullable=False, index=True)
+    reporter_id: Mapped[int] = mapped_column(ForeignKey("m_users.id"), nullable=False, index=True)
+    report_type: Mapped[ManagementReportType] = mapped_column(Enum(ManagementReportType), nullable=False)
+    report_date: Mapped[date] = mapped_column(Date, nullable=False)
+    report_time: Mapped[str] = mapped_column(String(5), nullable=False)
+    shift_incoming_user_id: Mapped[int | None] = mapped_column(ForeignKey("m_users.id"), nullable=True)
+    shift_outgoing_user_id: Mapped[int | None] = mapped_column(ForeignKey("m_users.id"), nullable=True)
+    resident_guest_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    ojol_guest_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    electricity_token: Mapped[float | None] = mapped_column(Numeric(12, 2))
+    latitude: Mapped[float | None] = mapped_column(Numeric(10, 7))
+    longitude: Mapped[float | None] = mapped_column(Numeric(10, 7))
+    situation: Mapped[str] = mapped_column(String(200), nullable=False)
+    notes: Mapped[str | None] = mapped_column(Text)
+    status: Mapped[ManagementReportStatus] = mapped_column(
+        Enum(ManagementReportStatus), nullable=False, default=ManagementReportStatus.pending, index=True
+    )
+    rejection_reason: Mapped[str | None] = mapped_column(Text)
+    reviewed_by: Mapped[int | None] = mapped_column(ForeignKey("m_users.id"), nullable=True)
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime)
+
+
+class ManagementReportImage(TimestampMixin, Base):
+    __tablename__ = "trx_management_report_images"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    management_report_id: Mapped[int] = mapped_column(
+        ForeignKey("trx_management_reports.id"), nullable=False, index=True
+    )
+    image_url: Mapped[str] = mapped_column(String(255), nullable=False)
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+
 class NewsMedia(TimestampMixin, Base):
     __tablename__ = "trx_news_media"
 
@@ -270,6 +345,85 @@ class NewsLike(Base):
     news_id: Mapped[int] = mapped_column(ForeignKey("trx_news.id"), nullable=False, index=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("m_users.id"), nullable=False, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+
+class MarketplacePost(TimestampMixin, Base):
+    __tablename__ = "trx_marketplace_posts"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    complex_id: Mapped[int] = mapped_column(ForeignKey("m_complexes.id"), nullable=False, index=True)
+    author_id: Mapped[int] = mapped_column(ForeignKey("m_users.id"), nullable=False, index=True)
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    item_type: Mapped[MarketplaceItemType] = mapped_column(Enum(MarketplaceItemType), nullable=False)
+    price: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    phone: Mapped[str | None] = mapped_column(String(20))
+    status: Mapped[MarketplaceStatus] = mapped_column(Enum(MarketplaceStatus), nullable=False, default=MarketplaceStatus.pending, index=True)
+    rejection_reason: Mapped[str | None] = mapped_column(Text)
+    reviewed_by: Mapped[int | None] = mapped_column(ForeignKey("m_users.id"), nullable=True)
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime)
+    published_at: Mapped[datetime | None] = mapped_column(DateTime, index=True)
+
+
+class MarketplaceImage(TimestampMixin, Base):
+    __tablename__ = "trx_marketplace_images"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    marketplace_post_id: Mapped[int] = mapped_column(ForeignKey("trx_marketplace_posts.id"), nullable=False, index=True)
+    image_url: Mapped[str] = mapped_column(String(255), nullable=False)
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+
+class MarketplaceLike(Base):
+    __tablename__ = "trx_marketplace_likes"
+    __table_args__ = (UniqueConstraint("marketplace_post_id", "user_id", name="uq_marketplace_like"),)
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    marketplace_post_id: Mapped[int] = mapped_column(ForeignKey("trx_marketplace_posts.id"), nullable=False, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("m_users.id"), nullable=False, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+
+class MarketplaceComment(TimestampMixin, Base):
+    __tablename__ = "trx_marketplace_comments"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    marketplace_post_id: Mapped[int] = mapped_column(ForeignKey("trx_marketplace_posts.id"), nullable=False, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("m_users.id"), nullable=False, index=True)
+    comment: Mapped[str] = mapped_column(Text, nullable=False)
+
+
+class PurchaseRequest(TimestampMixin, Base):
+    __tablename__ = "trx_purchase_requests"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    complex_id: Mapped[int] = mapped_column(ForeignKey("m_complexes.id"), nullable=False, index=True)
+    requester_id: Mapped[int] = mapped_column(ForeignKey("m_users.id"), nullable=False, index=True)
+    header: Mapped[str] = mapped_column(String(200), nullable=False)
+    status: Mapped[PurchaseRequestStatus] = mapped_column(
+        Enum(PurchaseRequestStatus), nullable=False, default=PurchaseRequestStatus.requested, index=True
+    )
+    rejection_reason: Mapped[str | None] = mapped_column(Text)
+    reviewed_by: Mapped[int | None] = mapped_column(ForeignKey("m_users.id"), nullable=True)
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime)
+    actual_amount: Mapped[int | None] = mapped_column(BigInteger)
+    completion_note: Mapped[str | None] = mapped_column(Text)
+    transaction_proof_url: Mapped[str | None] = mapped_column(String(255))
+    transaction_proof_name: Mapped[str | None] = mapped_column(String(255))
+    completed_by: Mapped[int | None] = mapped_column(ForeignKey("m_users.id"), nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime)
+
+
+class PurchaseRequestItem(TimestampMixin, Base):
+    __tablename__ = "trx_purchase_request_items"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    purchase_request_id: Mapped[int] = mapped_column(
+        ForeignKey("trx_purchase_requests.id"), nullable=False, index=True
+    )
+    item_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    quantity: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    estimated_price: Mapped[int] = mapped_column(BigInteger, nullable=False)
 
 
 class Facility(TimestampMixin, Base):
@@ -400,7 +554,7 @@ class House(TimestampMixin, Base):
     number: Mapped[str] = mapped_column(String(50), nullable=False)
     gps_coordinates: Mapped[str | None] = mapped_column(String(100))
     house_photo_url: Mapped[str | None] = mapped_column(String(255))
-    house_status: Mapped[str] = mapped_column(String(30), default="ditempati")
+    house_status: Mapped[str] = mapped_column(String(30), default="dihuni")
 
 
 class HouseDocument(TimestampMixin, Base):
@@ -410,6 +564,18 @@ class HouseDocument(TimestampMixin, Base):
     house_id: Mapped[int] = mapped_column(ForeignKey("m_houses.id"), nullable=False, index=True)
     file_url: Mapped[str] = mapped_column(String(255), nullable=False)
     file_name: Mapped[str | None] = mapped_column(String(150))
+
+
+class HouseIplPayment(TimestampMixin, Base):
+    __tablename__ = "trx_house_ipl_payments"
+    __table_args__ = (UniqueConstraint("house_id", "payment_year", "payment_month", name="uq_house_ipl_period"),)
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    house_id: Mapped[int] = mapped_column(ForeignKey("m_houses.id"), nullable=False, index=True)
+    payment_year: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    payment_month: Mapped[int] = mapped_column(Integer, nullable=False)
+    amount: Mapped[float] = mapped_column(Numeric(14, 2), nullable=False, default=0)
+    is_paid: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
 
 class FamilyMember(TimestampMixin, Base):

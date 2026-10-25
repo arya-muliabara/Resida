@@ -1,0 +1,14 @@
+{
+  "id": "/",
+  "name": "RUKUN",
+  "short_name": "RUKUN",
+  "description": "Management Rukun dalam satu platform",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#155f73",
+  "theme_color": "#155f73",
+  "icons": [
+    { "src": "icons/rukun-app-192.png?v=20260912-2", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icons/rukun-app-512.png?v=20260912-2", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

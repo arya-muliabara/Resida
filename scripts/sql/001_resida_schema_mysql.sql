@@ -15,7 +15,6 @@ CREATE TABLE IF NOT EXISTS `m_complexes` (
   `address` TEXT NULL,
   `description` TEXT NULL,
   `logo_url` VARCHAR(255) NULL,
-  `is_active` BOOLEAN NOT NULL DEFAULT TRUE,
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `deleted_at` DATETIME NULL,
@@ -30,7 +29,7 @@ CREATE TABLE IF NOT EXISTS `m_users` (
   `full_name` VARCHAR(150) NOT NULL,
   `email` VARCHAR(150) NOT NULL,
   `password_hash` VARCHAR(255) NOT NULL,
-  `role` ENUM('superadmin','administrator','penghuni') NOT NULL,
+  `role` ENUM('superadmin','administrator','pengurus','penghuni','security','supports') NOT NULL,
   `phone` VARCHAR(20) NULL,
   `phone_secondary` VARCHAR(20) NULL,
   `ktp_number` VARCHAR(20) NULL,
@@ -328,45 +327,6 @@ CREATE TABLE IF NOT EXISTS `trx_letter_request_replies` (
   INDEX `ix_letter_replies_is_deleted` (`is_deleted`),
   CONSTRAINT `fk_letter_replies_request_id` FOREIGN KEY (`letter_request_id`) REFERENCES `trx_letter_requests` (`id`),
   CONSTRAINT `fk_letter_replies_user_id` FOREIGN KEY (`user_id`) REFERENCES `m_users` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS `m_houses` (
-  `id` BIGINT NOT NULL AUTO_INCREMENT,
-  `complex_id` BIGINT NOT NULL,
-  `user_id` BIGINT NOT NULL,
-  `address` TEXT NOT NULL,
-  `block` VARCHAR(50) NOT NULL,
-  `number` VARCHAR(50) NOT NULL,
-  `gps_coordinates` VARCHAR(100) NULL,
-  `house_photo_url` VARCHAR(255) NULL,
-  `house_status` VARCHAR(30) NOT NULL DEFAULT 'ditempati',
-  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `deleted_at` DATETIME NULL,
-  `is_deleted` BOOLEAN NOT NULL DEFAULT FALSE,
-  PRIMARY KEY (`id`),
-  INDEX `ix_m_houses_complex_id` (`complex_id`),
-  INDEX `ix_m_houses_user_id` (`user_id`),
-  INDEX `ix_m_houses_is_deleted` (`is_deleted`),
-  CONSTRAINT `fk_m_houses_complex_id` FOREIGN KEY (`complex_id`) REFERENCES `m_complexes` (`id`),
-  CONSTRAINT `fk_m_houses_user_id` FOREIGN KEY (`user_id`) REFERENCES `m_users` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS `m_family_members` (
-  `id` BIGINT NOT NULL AUTO_INCREMENT,
-  `house_id` BIGINT NOT NULL,
-  `full_name` VARCHAR(150) NOT NULL,
-  `relationship` VARCHAR(80) NULL,
-  `phone` VARCHAR(20) NULL,
-  `ktp_number` VARCHAR(20) NULL,
-  `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `deleted_at` DATETIME NULL,
-  `is_deleted` BOOLEAN NOT NULL DEFAULT FALSE,
-  PRIMARY KEY (`id`),
-  INDEX `ix_m_family_members_house_id` (`house_id`),
-  INDEX `ix_m_family_members_is_deleted` (`is_deleted`),
-  CONSTRAINT `fk_m_family_members_house_id` FOREIGN KEY (`house_id`) REFERENCES `m_houses` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS `trx_notification_logs` (

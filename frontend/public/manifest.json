@@ -1,12 +1,13 @@
 {
   "name": "RUKUN",
   "short_name": "RUKUN",
-  "description": "Rukun dalam satu platform",
+  "description": "Management Rukun dalam satu platform",
   "start_url": ".",
   "display": "standalone",
-  "background_color": "#f6f8fb",
-  "theme_color": "#1d6f74",
+  "background_color": "#155f73",
+  "theme_color": "#155f73",
   "icons": [
-    { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml" }
+    { "src": "icons/rukun-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icons/rukun-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
   ]
 }

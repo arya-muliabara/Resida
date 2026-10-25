@@ -15,6 +15,8 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 @router.post("/register", response_model=RegistrationRequestRead, status_code=status.HTTP_201_CREATED)
 def register(
+    full_name: str = Form(..., min_length=2, max_length=150),
+    phone: str = Form(..., min_length=8, max_length=20),
     email: str = Form(...),
     password: str = Form(..., min_length=8),
     complex_id: int = Form(...),
@@ -28,11 +30,19 @@ def register(
     if db.scalar(select(User.id).where(User.email == email_value)):
         raise HTTPException(status_code=409, detail="Email already registered")
 
+    full_name_value = " ".join(full_name.split())
+    if len(full_name_value) < 2:
+        raise HTTPException(status_code=422, detail="Nama lengkap wajib diisi")
+    phone_value = phone.strip().translate(str.maketrans("", "", " -()."))
+    phone_digits = phone_value[1:] if phone_value.startswith("+") else phone_value
+    if not phone_digits.isdigit() or not 8 <= len(phone_digits) <= 15:
+        raise HTTPException(status_code=422, detail="Nomor telepon harus terdiri dari 8 sampai 15 digit")
+
     ktp_url = save_upload(ktp_document, "registration-ktp")
-    full_name = email_value.split("@")[0].replace(".", " ").replace("_", " ").title()
     user = User(
         complex_id=complex_id,
-        full_name=full_name,
+        full_name=full_name_value,
+        phone=phone_value,
         email=email_value,
         password_hash=hash_password(password),
         role=UserRole.penghuni,
@@ -73,7 +83,7 @@ def register(
             db,
             admin.email,
             "Request pendaftaran penghuni baru",
-            f"Ada request pendaftaran baru untuk {complex_.name}: {email_value}. Silakan validasi di aplikasi RUKUN.",
+            f"Ada request pendaftaran baru untuk {complex_.name}: {full_name_value}, {phone_value} ({email_value}). Silakan validasi di aplikasi RUKUN.",
             NotificationType.email_verification,
             admin,
         )
@@ -88,7 +98,7 @@ def register(
     db.commit()
     db.refresh(registration)
     data = RegistrationRequestRead.model_validate(registration).model_dump()
-    data.update({"email": user.email, "full_name": user.full_name, "complex_name": complex_.name})
+    data.update({"email": user.email, "full_name": user.full_name, "phone": user.phone, "complex_name": complex_.name})
     return RegistrationRequestRead(**data)
 
 

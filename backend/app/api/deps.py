@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.core.security import decode_token
 from app.db.session import get_db
-from app.models.entities import Complex, ComplexAdministrator, User, UserRole
+from app.models.entities import COMPLEX_ADMIN_ROLES, Complex, ComplexAdministrator, User, UserRole
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
@@ -48,7 +48,7 @@ def ensure_complex_access(db: Session, user: User, complex_id: int) -> None:
         return
     if user.role in [UserRole.penghuni, UserRole.security, UserRole.supports] and user.complex_id == complex_id:
         return
-    if user.role == UserRole.administrator:
+    if user.role in COMPLEX_ADMIN_ROLES:
         assigned = db.scalar(
             select(ComplexAdministrator.id).where(
                 ComplexAdministrator.user_id == user.id,

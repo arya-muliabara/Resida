@@ -21,6 +21,7 @@ def serialize_registration(db: Session, item: RegistrationRequest) -> Registrati
         {
             "email": user.email if user else None,
             "full_name": user.full_name if user else None,
+            "phone": user.phone if user else None,
             "complex_name": complex_.name if complex_ else None,
         }
     )

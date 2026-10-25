@@ -8,6 +8,7 @@ from app.api.deps import ensure_complex_access, get_current_user, require_roles,
 from app.db.session import get_db
 from app.models.entities import (
     AttachmentSource,
+    COMPLEX_ADMIN_ROLES,
     LetterRequest,
     LetterRequestAttachment,
     LetterRequestReply,
@@ -22,6 +23,7 @@ from app.schemas.letters import (
     LetterRequestRead,
     LetterRequestUpdate,
     LetterReplyCreate,
+    LetterReplyRead,
     LetterTypeCreate,
     LetterTypeRead,
     LetterTypeUpdate,
@@ -44,12 +46,18 @@ def serialize_request(db: Session, item: LetterRequest) -> LetterRequestRead:
             LetterRequestAttachment.is_deleted.is_(False),
         )
     ).all()
+    reply_rows = []
+    for reply in replies:
+        reply_data = LetterReplyRead.model_validate(reply).model_dump()
+        reply_user = db.get(User, reply.user_id)
+        reply_data["user_name"] = reply_user.full_name if reply_user else None
+        reply_rows.append(reply_data)
     data = LetterRequestRead.model_validate(item).model_dump()
     data.update(
         {
             "letter_type_name": letter_type.name if letter_type else None,
             "requester_name": requester.full_name if requester else None,
-            "replies": replies,
+            "replies": reply_rows,
             "attachments": attachments,
         }
     )
@@ -71,7 +79,7 @@ def list_letter_types(db: Session = Depends(get_db), user: User = Depends(get_cu
 def create_letter_type(
     payload: LetterTypeCreate,
     db: Session = Depends(get_db),
-    user: User = Depends(require_roles(UserRole.administrator)),
+    user: User = Depends(require_roles(*COMPLEX_ADMIN_ROLES)),
 ) -> LetterType:
     letter_type = LetterType(complex_id=user_complex_id(user), **payload.model_dump())
     db.add(letter_type)
@@ -85,7 +93,7 @@ def update_letter_type(
     letter_type_id: int,
     payload: LetterTypeUpdate,
     db: Session = Depends(get_db),
-    user: User = Depends(require_roles(UserRole.administrator)),
+    user: User = Depends(require_roles(*COMPLEX_ADMIN_ROLES)),
 ) -> LetterType:
     letter_type = db.scalar(select(LetterType).where(LetterType.id == letter_type_id, LetterType.is_deleted.is_(False)))
     if not letter_type:
@@ -102,7 +110,7 @@ def update_letter_type(
 def delete_letter_type(
     letter_type_id: int,
     db: Session = Depends(get_db),
-    user: User = Depends(require_roles(UserRole.administrator)),
+    user: User = Depends(require_roles(*COMPLEX_ADMIN_ROLES)),
 ) -> dict[str, str]:
     letter_type = db.scalar(select(LetterType).where(LetterType.id == letter_type_id, LetterType.is_deleted.is_(False)))
     if not letter_type:
@@ -157,7 +165,7 @@ def reply_request(
     request_id: int,
     payload: LetterReplyCreate,
     db: Session = Depends(get_db),
-    user: User = Depends(require_roles(UserRole.administrator)),
+    user: User = Depends(require_roles(*COMPLEX_ADMIN_ROLES)),
 ) -> LetterRequestRead:
     item = db.scalar(select(LetterRequest).where(LetterRequest.id == request_id, LetterRequest.is_deleted.is_(False)))
     if not item:
@@ -235,7 +243,7 @@ def add_attachment(
     if user.role == UserRole.penghuni and item.requester_id != user.id:
         raise HTTPException(status_code=403, detail="No access to this request")
     ensure_complex_access(db, user, item.complex_id)
-    source = payload.source or (AttachmentSource.administrator if user.role == UserRole.administrator else AttachmentSource.penghuni)
+    source = payload.source or (AttachmentSource.administrator if user.role in COMPLEX_ADMIN_ROLES else AttachmentSource.penghuni)
     if payload.replace:
         for attachment in db.scalars(
             select(LetterRequestAttachment).where(
@@ -254,6 +262,33 @@ def add_attachment(
             file_name=payload.file_name,
         )
     )
+    db.commit()
+    db.refresh(item)
+    return serialize_request(db, item)
+
+
+@router.delete("/requests/{request_id}/attachments/{attachment_id}", response_model=LetterRequestRead)
+def delete_own_attachment(
+    request_id: int,
+    attachment_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> LetterRequestRead:
+    item = db.scalar(select(LetterRequest).where(LetterRequest.id == request_id, LetterRequest.is_deleted.is_(False)))
+    if not item:
+        raise HTTPException(status_code=404, detail="Request not found")
+    ensure_complex_access(db, user, item.complex_id)
+    attachment = db.scalar(
+        select(LetterRequestAttachment).where(
+            LetterRequestAttachment.id == attachment_id,
+            LetterRequestAttachment.letter_request_id == request_id,
+            LetterRequestAttachment.uploaded_by == user.id,
+            LetterRequestAttachment.is_deleted.is_(False),
+        )
+    )
+    if not attachment:
+        raise HTTPException(status_code=404, detail="Attachment not found or not uploaded by this user")
+    attachment.soft_delete()
     db.commit()
     db.refresh(item)
     return serialize_request(db, item)

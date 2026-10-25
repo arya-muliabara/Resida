@@ -703,7 +703,7 @@ SEED_SUPERADMIN_PASSWORD=password_yang_kuat
 
 ## Flow Registrasi Penghuni
 
-1. Penghuni membuka halaman `Registrasi`, mengisi email dan password, memilih komplek, lalu upload dokumen KTP.
+1. Penghuni membuka halaman `Registrasi`, mengisi nama lengkap, nomor telepon, email, dan password, memilih komplek, lalu upload dokumen KTP.
 2. Sistem membuat akun penghuni dalam status belum aktif dan membuat request pendaftaran.
 3. Administrator komplek menerima notifikasi email dan melihat request pada menu `Daftar` / `Request Pendaftaran`.
 4. Administrator memvalidasi data dan dokumen KTP secara manual.

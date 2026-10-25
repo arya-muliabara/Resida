@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import ensure_complex_access, get_current_user, require_roles, user_complex_id
 from app.db.session import get_db
-from app.models.entities import News, NewsComment, NewsLike, NewsMedia, User, UserRole
+from app.models.entities import COMPLEX_ADMIN_ROLES, News, NewsComment, NewsLike, NewsMedia, User, UserRole
 from app.models.entities import NotificationType
 from app.schemas.news import CommentCreate, CommentRead, NewsCreate, NewsRead, NewsUpdate
 from app.services.notifications import notify_users, users_by_roles
@@ -31,11 +31,15 @@ def serialize_news(db: Session, news: News, user: User) -> NewsRead:
 
 
 def sync_news_media(db: Session, news: News, media_urls: list[str]) -> None:
-    for item in db.scalars(select(NewsMedia).where(NewsMedia.news_id == news.id, NewsMedia.is_deleted.is_(False))):
-        item.soft_delete()
-    for url in media_urls:
-        clean_url = str(url).strip()
-        if clean_url:
+    requested_urls = list(dict.fromkeys(str(url).strip() for url in media_urls if str(url).strip()))
+    active_media = list(db.scalars(select(NewsMedia).where(NewsMedia.news_id == news.id, NewsMedia.is_deleted.is_(False))))
+    active_by_url = {item.file_url: item for item in active_media}
+    requested_set = set(requested_urls)
+    for item in active_media:
+        if item.file_url not in requested_set:
+            item.soft_delete()
+    for clean_url in requested_urls:
+        if clean_url not in active_by_url:
             db.add(NewsMedia(news_id=news.id, file_url=clean_url, file_name=clean_url.rsplit("/", 1)[-1]))
 
 
@@ -54,7 +58,7 @@ def list_news(
 ) -> list[NewsRead]:
     complex_id = user_complex_id(user)
     query = select(News).where(News.complex_id == complex_id, News.is_deleted.is_(False))
-    if user.role != UserRole.administrator:
+    if user.role not in COMPLEX_ADMIN_ROLES:
         query = query.where(News.is_active.is_(True))
     if q:
         query = query.where(News.title.ilike(f"%{q}%") | News.content.ilike(f"%{q}%"))
@@ -90,7 +94,7 @@ def create_news_contribution(
     sync_news_media(db, news, media_urls)
     notify_users(
         db,
-        users_by_roles(db, complex_id, [UserRole.administrator]),
+        users_by_roles(db, complex_id, list(COMPLEX_ADMIN_ROLES)),
         NotificationType.news_contribution,
         "Kontribusi berita baru",
         f"{user.full_name} mengirim berita: {news.title}",
@@ -106,7 +110,7 @@ def create_news_contribution(
 def create_news(
     payload: NewsCreate,
     db: Session = Depends(get_db),
-    user: User = Depends(require_roles(UserRole.administrator)),
+    user: User = Depends(require_roles(*COMPLEX_ADMIN_ROLES)),
 ) -> NewsRead:
     complex_id = user_complex_id(user)
     data = payload.model_dump()
@@ -134,6 +138,38 @@ def create_news(
     return serialize_news(db, news, user)
 
 
+@router.patch("/contributions/{news_id}", response_model=NewsRead)
+def update_own_news_contribution(
+    news_id: int,
+    payload: NewsUpdate,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(UserRole.penghuni)),
+) -> NewsRead:
+    news = db.scalar(
+        select(News).where(
+            News.id == news_id,
+            News.author_id == user.id,
+            News.complex_id == user_complex_id(user),
+            News.is_deleted.is_(False),
+        )
+    )
+    if not news:
+        raise HTTPException(status_code=404, detail="News contribution not found")
+    data = payload.model_dump(exclude_unset=True)
+    media_urls = data.pop("media_urls", None)
+    data.pop("is_active", None)
+    data["is_active"] = False
+    if media_urls is not None:
+        data["cover_image_url"] = media_urls[0] if media_urls else None
+    for key, value in data.items():
+        setattr(news, key, value)
+    if media_urls is not None:
+        sync_news_media(db, news, media_urls)
+    db.commit()
+    db.refresh(news)
+    return serialize_news(db, news, user)
+
+
 @router.get("/{news_id}", response_model=NewsRead)
 def get_news(news_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)) -> NewsRead:
     news = db.scalar(select(News).where(News.id == news_id, News.is_deleted.is_(False)))
@@ -148,7 +184,7 @@ def update_news(
     news_id: int,
     payload: NewsUpdate,
     db: Session = Depends(get_db),
-    user: User = Depends(require_roles(UserRole.administrator)),
+    user: User = Depends(require_roles(*COMPLEX_ADMIN_ROLES)),
 ) -> NewsRead:
     news = db.scalar(select(News).where(News.id == news_id, News.is_deleted.is_(False)))
     if not news:
@@ -156,8 +192,8 @@ def update_news(
     ensure_complex_access(db, user, news.complex_id)
     data = payload.model_dump(exclude_unset=True)
     media_urls = data.pop("media_urls", None)
-    if media_urls:
-        data["cover_image_url"] = media_urls[0]
+    if media_urls is not None:
+        data["cover_image_url"] = media_urls[0] if media_urls else None
     for key, value in data.items():
         setattr(news, key, value)
     if media_urls is not None:
@@ -181,7 +217,7 @@ def update_news(
 def delete_news(
     news_id: int,
     db: Session = Depends(get_db),
-    user: User = Depends(require_roles(UserRole.administrator)),
+    user: User = Depends(require_roles(*COMPLEX_ADMIN_ROLES)),
 ) -> dict[str, str]:
     news = db.scalar(select(News).where(News.id == news_id, News.is_deleted.is_(False)))
     if not news:

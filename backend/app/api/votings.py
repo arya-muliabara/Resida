@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import ensure_complex_access, get_current_user, require_roles, user_complex_id
 from app.db.session import get_db
-from app.models.entities import User, UserRole, Voting, VotingOption, VotingVote
+from app.models.entities import COMPLEX_ADMIN_ROLES, User, UserRole, Voting, VotingOption, VotingVote
 from app.schemas.votings import VoteCreate, VotingCreate, VotingOptionRead, VotingRead, VotingUpdate
 
 router = APIRouter(prefix="/votings", tags=["votings"])
@@ -21,7 +21,7 @@ def serialize_voting(db: Session, voting: Voting, user: User) -> VotingRead:
     for option in options:
         votes_count = db.scalar(select(func.count(VotingVote.id)).where(VotingVote.option_id == option.id)) or 0
         voters = []
-        if user.role == UserRole.administrator:
+        if user.role in COMPLEX_ADMIN_ROLES:
             voters = db.scalars(
                 select(User.full_name)
                 .join(VotingVote, VotingVote.user_id == User.id)
@@ -48,7 +48,7 @@ def list_votings(db: Session = Depends(get_db), user: User = Depends(get_current
 def create_voting(
     payload: VotingCreate,
     db: Session = Depends(get_db),
-    user: User = Depends(require_roles(UserRole.administrator)),
+    user: User = Depends(require_roles(*COMPLEX_ADMIN_ROLES)),
 ) -> VotingRead:
     voting = Voting(
         complex_id=user_complex_id(user),
@@ -106,7 +106,7 @@ def update_voting(
     voting_id: int,
     payload: VotingUpdate,
     db: Session = Depends(get_db),
-    user: User = Depends(require_roles(UserRole.administrator)),
+    user: User = Depends(require_roles(*COMPLEX_ADMIN_ROLES)),
 ) -> VotingRead:
     voting = db.scalar(select(Voting).where(Voting.id == voting_id, Voting.is_deleted.is_(False)))
     if not voting:
@@ -136,7 +136,7 @@ def update_voting(
 def delete_voting(
     voting_id: int,
     db: Session = Depends(get_db),
-    user: User = Depends(require_roles(UserRole.administrator)),
+    user: User = Depends(require_roles(*COMPLEX_ADMIN_ROLES)),
 ) -> dict[str, str]:
     voting = db.scalar(select(Voting).where(Voting.id == voting_id, Voting.is_deleted.is_(False)))
     if not voting:

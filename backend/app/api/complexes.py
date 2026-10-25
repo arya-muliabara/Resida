@@ -5,16 +5,16 @@ from sqlalchemy.orm import Session
 from app.api.deps import require_roles
 from app.core.security import hash_password
 from app.db.session import get_db
-from app.models.entities import Complex, ComplexAdministrator, RegistrationRequest, RegistrationStatus, User, UserRole
+from app.models.entities import COMPLEX_ADMIN_ROLES, Complex, ComplexAdministrator, RegistrationRequest, RegistrationStatus, User, UserRole
 from app.schemas.users import ComplexCreate, ComplexRead, ComplexUpdate, UserCreate, UserRead, UserUpdate
 
 router = APIRouter(prefix="/complexes", tags=["complexes"])
-MANAGED_RESIDENT_ROLES = [UserRole.penghuni, UserRole.security, UserRole.supports]
+MANAGED_RESIDENT_ROLES = [UserRole.pengurus, UserRole.penghuni, UserRole.security, UserRole.supports]
 
 
 def ensure_admin_complex(current: User) -> int:
     if current.role != UserRole.administrator or not current.complex_id:
-        raise HTTPException(status_code=403, detail="Admin Komplek only")
+        raise HTTPException(status_code=403, detail="Administrator Komplek only")
     return current.complex_id
 
 
@@ -31,6 +31,23 @@ def get_managed_resident(db: Session, current: User, user_id: int) -> User:
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     return user
+
+
+def sync_complex_admin_assignment(db: Session, user: User, assigned_by: int) -> None:
+    assignments = db.scalars(select(ComplexAdministrator).where(ComplexAdministrator.user_id == user.id)).all()
+    desired_assignment = None
+    for assignment in assignments:
+        if user.role in COMPLEX_ADMIN_ROLES and assignment.complex_id == user.complex_id:
+            desired_assignment = assignment
+        elif not assignment.is_deleted:
+            assignment.soft_delete()
+    if user.role in COMPLEX_ADMIN_ROLES and user.complex_id:
+        if desired_assignment:
+            desired_assignment.is_deleted = False
+            desired_assignment.deleted_at = None
+            desired_assignment.assigned_by = assigned_by
+        else:
+            db.add(ComplexAdministrator(complex_id=user.complex_id, user_id=user.id, assigned_by=assigned_by))
 
 
 @router.get("", response_model=list[ComplexRead])
@@ -66,7 +83,7 @@ def create_user(
     current: User = Depends(require_roles(UserRole.superadmin)),
 ) -> User:
     if payload.role != UserRole.superadmin and not payload.complex_id:
-        raise HTTPException(status_code=400, detail="complex_id is required for administrator and penghuni")
+        raise HTTPException(status_code=400, detail="complex_id is required for non-superadmin users")
     if db.scalar(select(User.id).where(User.email == payload.email)):
         raise HTTPException(status_code=409, detail="Email already registered")
     user = User(
@@ -76,7 +93,7 @@ def create_user(
     )
     db.add(user)
     db.flush()
-    if payload.role == UserRole.administrator and payload.complex_id:
+    if payload.role in COMPLEX_ADMIN_ROLES and payload.complex_id:
         db.add(ComplexAdministrator(complex_id=payload.complex_id, user_id=user.id, assigned_by=current.id))
     db.commit()
     db.refresh(user)
@@ -99,31 +116,13 @@ def update_user(
     desired_role = data.get("role", user.role)
     desired_complex_id = data.get("complex_id", user.complex_id)
     if desired_role != UserRole.superadmin and not desired_complex_id:
-        raise HTTPException(status_code=400, detail="complex_id is required for administrator and penghuni")
+        raise HTTPException(status_code=400, detail="complex_id is required for non-superadmin users")
     password = data.pop("password", None)
     if password:
         user.password_hash = hash_password(password)
     for key, value in data.items():
         setattr(user, key, value)
-    assignments = db.scalars(
-        select(ComplexAdministrator).where(
-            ComplexAdministrator.user_id == user.id,
-            ComplexAdministrator.is_deleted.is_(False),
-        )
-    ).all()
-    for assignment in assignments:
-        if user.role != UserRole.administrator or assignment.complex_id != user.complex_id:
-            assignment.soft_delete()
-    if user.role == UserRole.administrator and user.complex_id:
-        assigned = db.scalar(
-            select(ComplexAdministrator).where(
-                ComplexAdministrator.complex_id == user.complex_id,
-                ComplexAdministrator.user_id == user.id,
-                ComplexAdministrator.is_deleted.is_(False),
-            )
-        )
-        if not assigned:
-            db.add(ComplexAdministrator(complex_id=user.complex_id, user_id=user.id, assigned_by=current.id))
+    sync_complex_admin_assignment(db, user, current.id)
     db.commit()
     db.refresh(user)
     return user
@@ -200,7 +199,7 @@ def create_resident(
 ) -> User:
     complex_id = ensure_admin_complex(current)
     if payload.role not in MANAGED_RESIDENT_ROLES:
-        raise HTTPException(status_code=400, detail="Role hanya boleh Penghuni, Security, atau Supports")
+        raise HTTPException(status_code=400, detail="Role hanya boleh Pengurus, Penghuni, Security, atau Supports")
     if db.scalar(select(User.id).where(User.email == payload.email)):
         raise HTTPException(status_code=409, detail="Email already registered")
     user = User(
@@ -210,6 +209,8 @@ def create_resident(
         is_active=True,
     )
     db.add(user)
+    db.flush()
+    sync_complex_admin_assignment(db, user, current.id)
     db.commit()
     db.refresh(user)
     return user
@@ -226,7 +227,7 @@ def update_resident(
     data = payload.model_dump(exclude_unset=True)
     data.pop("complex_id", None)
     if "role" in data and data["role"] not in MANAGED_RESIDENT_ROLES:
-        raise HTTPException(status_code=400, detail="Role hanya boleh Penghuni, Security, atau Supports")
+        raise HTTPException(status_code=400, detail="Role hanya boleh Pengurus, Penghuni, Security, atau Supports")
     if "email" in data and data["email"] != user.email and db.scalar(select(User.id).where(User.email == data["email"], User.id != user_id)):
         raise HTTPException(status_code=409, detail="Email already registered")
     password = data.pop("password", None)
@@ -234,6 +235,7 @@ def update_resident(
         user.password_hash = hash_password(password)
     for key, value in data.items():
         setattr(user, key, value)
+    sync_complex_admin_assignment(db, user, current.id)
     db.commit()
     db.refresh(user)
     return user

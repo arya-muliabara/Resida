@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import ensure_complex_access, get_current_user, require_roles, user_complex_id
 from app.db.session import get_db
-from app.models.entities import BookingStatus, Facility, FacilityBooking, FacilityMedia, User, UserRole
+from app.models.entities import COMPLEX_ADMIN_ROLES, BookingStatus, Facility, FacilityBooking, FacilityMedia, User, UserRole
 from app.schemas.facilities import BookingCreate, BookingRead, BookingStatusUpdate, BookingUpdate, FacilityCreate, FacilityRead, FacilityUpdate
 
 router = APIRouter(prefix="/facilities", tags=["facilities"])
@@ -25,13 +25,17 @@ def booking_read(db: Session, booking: FacilityBooking) -> BookingRead:
 
 
 def sync_facility_media(db: Session, facility: Facility, media_urls: list[str]) -> None:
-    for item in db.scalars(
+    requested_urls = list(dict.fromkeys(str(url).strip() for url in media_urls if str(url).strip()))
+    active_media = list(db.scalars(
         select(FacilityMedia).where(FacilityMedia.facility_id == facility.id, FacilityMedia.is_deleted.is_(False))
-    ):
-        item.soft_delete()
-    for url in media_urls:
-        clean_url = str(url).strip()
-        if clean_url:
+    ))
+    active_by_url = {item.file_url: item for item in active_media}
+    requested_set = set(requested_urls)
+    for item in active_media:
+        if item.file_url not in requested_set:
+            item.soft_delete()
+    for clean_url in requested_urls:
+        if clean_url not in active_by_url:
             db.add(FacilityMedia(facility_id=facility.id, file_url=clean_url, file_name=clean_url.rsplit("/", 1)[-1]))
 
 
@@ -57,7 +61,7 @@ def list_facilities(db: Session = Depends(get_db), user: User = Depends(get_curr
 def create_facility(
     payload: FacilityCreate,
     db: Session = Depends(get_db),
-    user: User = Depends(require_roles(UserRole.administrator)),
+    user: User = Depends(require_roles(*COMPLEX_ADMIN_ROLES)),
 ) -> FacilityRead:
     data = payload.model_dump()
     media_urls = data.pop("media_urls", [])
@@ -78,7 +82,7 @@ def update_facility(
     facility_id: int,
     payload: FacilityUpdate,
     db: Session = Depends(get_db),
-    user: User = Depends(require_roles(UserRole.administrator)),
+    user: User = Depends(require_roles(*COMPLEX_ADMIN_ROLES)),
 ) -> FacilityRead:
     facility = db.scalar(select(Facility).where(Facility.id == facility_id, Facility.is_deleted.is_(False)))
     if not facility:
@@ -86,8 +90,8 @@ def update_facility(
     ensure_complex_access(db, user, facility.complex_id)
     data = payload.model_dump(exclude_unset=True)
     media_urls = data.pop("media_urls", None)
-    if media_urls:
-        data["image_url"] = media_urls[0]
+    if media_urls is not None:
+        data["image_url"] = media_urls[0] if media_urls else None
     for key, value in data.items():
         setattr(facility, key, value)
     if media_urls is not None:
@@ -101,7 +105,7 @@ def update_facility(
 def delete_facility(
     facility_id: int,
     db: Session = Depends(get_db),
-    user: User = Depends(require_roles(UserRole.administrator)),
+    user: User = Depends(require_roles(*COMPLEX_ADMIN_ROLES)),
 ) -> dict[str, str]:
     facility = db.scalar(select(Facility).where(Facility.id == facility_id, Facility.is_deleted.is_(False)))
     if not facility:
@@ -172,12 +176,10 @@ def update_booking(
         raise HTTPException(status_code=404, detail="Booking not found")
     current_facility = db.get(Facility, booking.facility_id)
     ensure_complex_access(db, user, current_facility.complex_id)
-    if user.role != UserRole.administrator and booking.user_id != user.id:
+    if user.role not in COMPLEX_ADMIN_ROLES and booking.user_id != user.id:
         raise HTTPException(status_code=403, detail="No access to this booking")
-    if user.role != UserRole.administrator and booking.status == BookingStatus.approved:
-        raise HTTPException(status_code=403, detail="Approved bookings can only be changed by administrator")
     data = payload.model_dump(exclude_unset=True)
-    if user.role != UserRole.administrator:
+    if user.role not in COMPLEX_ADMIN_ROLES:
         data.pop("status", None)
     if "facility_id" in data:
         target_facility = db.scalar(select(Facility).where(Facility.id == data["facility_id"], Facility.is_deleted.is_(False)))
@@ -218,10 +220,8 @@ def delete_booking(
         raise HTTPException(status_code=404, detail="Booking not found")
     facility = db.get(Facility, booking.facility_id)
     ensure_complex_access(db, user, facility.complex_id)
-    if user.role != UserRole.administrator and booking.user_id != user.id:
+    if user.role not in COMPLEX_ADMIN_ROLES and booking.user_id != user.id:
         raise HTTPException(status_code=403, detail="No access to this booking")
-    if user.role != UserRole.administrator and booking.status == BookingStatus.approved:
-        raise HTTPException(status_code=403, detail="Approved bookings can only be deleted by administrator")
     booking.soft_delete()
     db.commit()
     return {"message": "Booking deleted"}
@@ -232,7 +232,7 @@ def update_booking_status(
     booking_id: int,
     payload: BookingStatusUpdate,
     db: Session = Depends(get_db),
-    user: User = Depends(require_roles(UserRole.administrator)),
+    user: User = Depends(require_roles(*COMPLEX_ADMIN_ROLES)),
 ) -> BookingRead:
     booking = db.scalar(select(FacilityBooking).where(FacilityBooking.id == booking_id, FacilityBooking.is_deleted.is_(False)))
     if not booking:

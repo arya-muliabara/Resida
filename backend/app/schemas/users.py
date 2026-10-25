@@ -1,4 +1,5 @@
 from datetime import datetime
+from decimal import Decimal
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -54,6 +55,8 @@ class UserRead(ORMModel):
 
 
 class RegisterRequest(BaseModel):
+    full_name: str = Field(min_length=2, max_length=150)
+    phone: str = Field(min_length=8, max_length=20)
     email: str
     password: str = Field(min_length=8)
     complex_id: int
@@ -82,6 +85,7 @@ class RegistrationRequestRead(ORMModel):
     created_at: datetime | None = None
     email: str | None = None
     full_name: str | None = None
+    phone: str | None = None
     complex_name: str | None = None
 
 
@@ -198,7 +202,7 @@ class HouseCreate(BaseModel):
     number: str = Field(max_length=50)
     gps_coordinates: str | None = Field(default=None, max_length=100)
     house_photo_url: str | None = Field(default=None, max_length=255)
-    house_status: str = Field(default="ditempati", pattern="^(ditempati|dihuni|kosong)$")
+    house_status: str = Field(default="dihuni", pattern="^(dihuni|disewakan|sita_bank|dikosongkan)$")
     document_urls: list[str] = []
 
 
@@ -209,7 +213,7 @@ class HouseUpdate(BaseModel):
     number: str | None = Field(default=None, max_length=50)
     gps_coordinates: str | None = Field(default=None, max_length=100)
     house_photo_url: str | None = Field(default=None, max_length=255)
-    house_status: str | None = Field(default=None, pattern="^(ditempati|dihuni|kosong)$")
+    house_status: str | None = Field(default=None, pattern="^(dihuni|disewakan|sita_bank|dikosongkan)$")
     document_urls: list[str] | None = None
 
 
@@ -227,6 +231,20 @@ class HouseRead(ORMModel):
     house_status: str
     documents: list[HouseDocumentRead] = []
     family_members: list[FamilyMemberRead] = []
+
+
+class HouseIplPaymentUpdate(BaseModel):
+    is_paid: bool = False
+    amount: Decimal = Field(ge=0, max_digits=14, decimal_places=2)
+
+
+class HouseIplPaymentRead(ORMModel):
+    id: int
+    house_id: int
+    payment_year: int
+    payment_month: int
+    amount: Decimal
+    is_paid: bool
 
 
 class UserDocumentCreate(BaseModel):

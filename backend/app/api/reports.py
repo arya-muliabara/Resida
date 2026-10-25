@@ -8,6 +8,7 @@ from app.api.deps import ensure_complex_access, get_current_user, require_roles,
 from app.db.session import get_db
 from app.models.entities import (
     AttachmentSource,
+    COMPLEX_ADMIN_ROLES,
     News,
     NewsMedia,
     NotificationType,
@@ -24,7 +25,7 @@ from app.services.notifications import notify_users, users_by_roles
 router = APIRouter(prefix="/reports", tags=["reports"])
 
 
-STAFF_ROLES = [UserRole.administrator, UserRole.security]
+STAFF_ROLES = [*COMPLEX_ADMIN_ROLES, UserRole.security]
 
 
 def serialize_report(db: Session, report: Report) -> ReportRead:
@@ -135,7 +136,7 @@ def add_followup(
     report_id: int,
     payload: ReportFollowUpCreate,
     db: Session = Depends(get_db),
-    user: User = Depends(require_roles(UserRole.administrator, UserRole.security)),
+    user: User = Depends(require_roles(*STAFF_ROLES)),
 ) -> ReportRead:
     report = db.scalar(select(Report).where(Report.id == report_id, Report.is_deleted.is_(False)))
     if not report:
@@ -163,8 +164,35 @@ def add_followup(
     return serialize_report(db, report)
 
 
+@router.delete("/{report_id}/attachments/{attachment_id}", response_model=ReportRead)
+def delete_own_report_attachment(
+    report_id: int,
+    attachment_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> ReportRead:
+    report = db.scalar(select(Report).where(Report.id == report_id, Report.is_deleted.is_(False)))
+    if not report:
+        raise HTTPException(status_code=404, detail="Report not found")
+    ensure_complex_access(db, user, report.complex_id)
+    attachment = db.scalar(
+        select(ReportAttachment).where(
+            ReportAttachment.id == attachment_id,
+            ReportAttachment.report_id == report_id,
+            ReportAttachment.uploaded_by == user.id,
+            ReportAttachment.is_deleted.is_(False),
+        )
+    )
+    if not attachment:
+        raise HTTPException(status_code=404, detail="Attachment not found or not uploaded by this user")
+    attachment.soft_delete()
+    db.commit()
+    db.refresh(report)
+    return serialize_report(db, report)
+
+
 @router.post("/{report_id}/publish", response_model=ReportRead)
-def publish_report(report_id: int, db: Session = Depends(get_db), user: User = Depends(require_roles(UserRole.administrator))) -> ReportRead:
+def publish_report(report_id: int, db: Session = Depends(get_db), user: User = Depends(require_roles(*COMPLEX_ADMIN_ROLES))) -> ReportRead:
     report = db.scalar(select(Report).where(Report.id == report_id, Report.is_deleted.is_(False)))
     if not report:
         raise HTTPException(status_code=404, detail="Report not found")
@@ -202,7 +230,7 @@ def publish_report(report_id: int, db: Session = Depends(get_db), user: User = D
 
 
 @router.post("/{report_id}/unpublish", response_model=ReportRead)
-def unpublish_report(report_id: int, db: Session = Depends(get_db), user: User = Depends(require_roles(UserRole.administrator))) -> ReportRead:
+def unpublish_report(report_id: int, db: Session = Depends(get_db), user: User = Depends(require_roles(*COMPLEX_ADMIN_ROLES))) -> ReportRead:
     report = db.scalar(select(Report).where(Report.id == report_id, Report.is_deleted.is_(False)))
     if not report:
         raise HTTPException(status_code=404, detail="Report not found")
