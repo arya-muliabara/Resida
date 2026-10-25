@@ -14,6 +14,14 @@ from app.schemas.users import WhatsAppGatewayConfigRead, WhatsAppGatewayConfigUp
 router = APIRouter(prefix="/whatsapp-gateway", tags=["whatsapp-gateway"])
 
 
+def gateway_base_url(value: str) -> str:
+    base_url = value.strip().rstrip("/")
+    for suffix in ("/api/v1/messages", "/api/v1/senders", "/api/v1"):
+        if base_url.lower().endswith(suffix):
+            return base_url[:-len(suffix)]
+    return base_url
+
+
 def get_config(db: Session) -> WhatsAppGatewayConfig:
     config = db.get(WhatsAppGatewayConfig, 1)
     if not config:
@@ -41,7 +49,7 @@ def read_config(db: Session = Depends(get_db), _: User = Depends(require_roles(U
 def update_config(payload: WhatsAppGatewayConfigUpdate, db: Session = Depends(get_db), _: User = Depends(require_roles(UserRole.superadmin))) -> WhatsAppGatewayConfigRead:
     config = get_config(db)
     for key, value in payload.model_dump(exclude_unset=True).items():
-        setattr(config, key, value.rstrip("/") if key == "base_url" and value else value)
+        setattr(config, key, gateway_base_url(value) if key == "base_url" and value else value)
     db.commit()
     db.refresh(config)
     return WhatsAppGatewayConfigRead(base_url=config.base_url, sender_id=config.sender_id, is_enabled=config.is_enabled,
@@ -54,7 +62,7 @@ def discover_senders(db: Session = Depends(get_db), _: User = Depends(require_ro
     if not config.base_url or not config.api_key:
         raise HTTPException(status_code=400, detail="Simpan URL gateway dan API key terlebih dahulu")
     try:
-        data = read_json(f"{config.base_url}/api/v1/senders", config.api_key)
+        data = read_json(f"{gateway_base_url(config.base_url)}/api/v1/senders", config.api_key)
     except HTTPError as exc:
         raise HTTPException(status_code=502, detail=f"Gateway menolak discovery sender (HTTP {exc.code}). Pastikan API key memiliki scope send.") from exc
     except (URLError, TimeoutError, ValueError) as exc:
