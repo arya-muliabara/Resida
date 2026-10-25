@@ -3,7 +3,7 @@ from decimal import Decimal
 
 from pydantic import BaseModel, Field, field_validator
 
-from app.models.entities import DocumentType, RegistrationStatus, UserRole
+from app.models.entities import DocumentType, NotificationType, RegistrationStatus, UserRole
 from app.schemas.common_base import ORMModel
 
 
